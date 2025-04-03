@@ -1,0 +1,30 @@
+from django.contrib import admin
+from .models import User, Skill, TechCategory, CommunityRole, Notification
+from django.contrib.auth.models import Group
+
+@admin.register(User)
+class UserAdmin(admin.ModelAdmin):
+    list_display = ('id', 'username', 'email', 'first_name', 'last_name', 'is_verified', 'is_deleted', 'created_at')
+    search_fields = ('username', 'email')
+    list_filter = ('is_verified', 'is_deleted', 'created_at')
+    ordering = ('-created_at',)
+    readonly_fields = ('date_joined',)
+
+@admin.register(Skill)
+class SkillAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
+
+@admin.register(TechCategory)
+class TechCategoryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'description', 'parent', 'created_at')
+    list_filter = ('parent',)
+    search_fields = ('name',)
+    ordering = ('-created_at',)
+
+@admin.register(CommunityRole)
+class CommunityRoleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'description')
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'message', 'created_at', 'is_read')
