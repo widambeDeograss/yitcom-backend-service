@@ -1,16 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
+    SocialAuthView,
     UserViewSet,
     RegisterView,
     LoginView,
-    VerifyOTPView,
     SkillViewSet,
     TechCategoryViewSet,
     CommunityRoleViewSet,
     GroupViewSet,
     PermissionViewSet,
-    ResendOTPView,
+
     
 )
 
@@ -27,11 +27,10 @@ router.register(r'permissions', PermissionViewSet)
 auth_urls = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
-    path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
-    path('resend-otp/', ResendOTPView.as_view(), name='setup-otp'),
 ]
 
 urlpatterns = [
     path('', include(router.urls)),
     path('auth/', include(auth_urls)),
+    path('api/social-auth/<str:backend>/', SocialAuthView.as_view(), name='social_auth'),
 ]

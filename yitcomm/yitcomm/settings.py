@@ -40,12 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework_simplejwt',
-     'django_otp',
-    'django_otp.plugins.otp_totp',
     'rest_framework',
-      'django_filters',
-        "corsheaders",
+    'django_filters',
+    "corsheaders",
     'apps.accounts',
+    'apps.projects',
+    'social_django',
 ]
 
 MIDDLEWARE = [
@@ -105,6 +105,11 @@ DATABASES = {
     }
 }
 
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50
+}
+
 # CHANNEL_LAYERS = {
 #     'default': {
 #         'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -141,6 +146,36 @@ REST_FRAMEWORK = {
     ),
     # ...
 }
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'social_core.backends.facebook.FacebookOAuth2',
+    'social_core.backends.github.GithubOAuth2',
+    'social_core.backends.google.GoogleOAuth2',
+]
+
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+
+# Facebook
+SOCIAL_AUTH_FACEBOOK_KEY = 'your-facebook-app-id'
+SOCIAL_AUTH_FACEBOOK_SECRET = 'your-facebook-app-secret'
+SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']
+SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
+    'fields': 'id,name,email'
+}
+
+# GitHub
+SOCIAL_AUTH_GITHUB_KEY = 'your-github-app-id'
+SOCIAL_AUTH_GITHUB_SECRET = 'your-github-app-secret'
+SOCIAL_AUTH_GITHUB_SCOPE = ['user:email']
+
+# Google
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = 'your-google-app-id'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'your-google-app-secret'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
+
+# User creation settings for social auth
+SOCIAL_AUTH_USER_MODEL = 'accounts.User'
 
 
 # Internationalization

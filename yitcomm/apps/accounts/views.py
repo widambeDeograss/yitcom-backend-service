@@ -5,12 +5,10 @@ from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import get_object_or_404
-from django_otp.plugins.otp_totp.models import TOTPDevice
-from rest_framework_simplejwt.tokens import RefreshToken
-import pyotp
-import uuid
 from django.core.mail import send_mail
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from social_django.utils import psa
 from .models import User, Skill, TechCategory, CommunityRole, Notification
 from .serializers import (
     UserSerializer, 
@@ -103,25 +101,12 @@ class RegisterView(generics.CreateAPIView):
         if serializer.is_valid():
             user = serializer.save()
             
-            # Generate a secret key for the user's TOTP device
-            secret_key = pyotp.random_base32()
-            
-            # Create TOTPDevice for the user
-            device = TOTPDevice.objects.create(
-                user=user,
-                name=f"{user.username}'s device",
-                confirmed=True,
-                key=secret_key
-            )
-            
-            # Send welcome email with instructions
+            # Send welcome email
             subject = "Welcome to Youth in Tech Tanzania"
             message = (
                 f"Hello {user.first_name},\n\n"
                 f"Thank you for registering with Youth in Tech Tanzania. "
                 f"Your account has been created successfully.\n\n"
-                f"For security purposes, we use two-factor authentication. "
-                f"You will receive a one-time password (OTP) via email when you log in.\n\n"
                 f"Best regards,\nYouth in Tech Tanzania Team"
             )
             send_mail(
@@ -134,14 +119,14 @@ class RegisterView(generics.CreateAPIView):
             
             return Response({
                 'user': UserSerializer(user).data,
-                'message': 'User registered successfully. You will receive OTPs via email when logging in.'
+                'message': 'User registered successfully.'
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
     """
-    API endpoint for user login with email-based two-factor authentication
+    API endpoint for user login with username and password
     """
     permission_classes = [permissions.AllowAny]
     
@@ -149,7 +134,6 @@ class LoginView(APIView):
         username = request.data.get('username')
         password = request.data.get('password')
         
-        # First factor: Username and password
         user = authenticate(username=username, password=password)
         
         if user is None:
@@ -159,99 +143,42 @@ class LoginView(APIView):
         if user.is_deleted:
             return Response({'error': 'User account has been deactivated'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Check if TOTP device exists
-        try:
-            print(f"Checking TOTP device for user: {user.username}")  # Debugging line
-            device = TOTPDevice.objects.get(user=user)
-        except TOTPDevice.DoesNotExist:
-            # Create a device if it doesn't exist
-            secret_key = pyotp.random_base32()
-            device = TOTPDevice.objects.create(
-                user=user,
-                name=f"{user.username}'s device",
-                confirmed=True,
-                key=secret_key
-            )
-        
-        # Generate OTP
-        totp = pyotp.TOTP(device.key)
-        otp_code = totp.now()
-
-        print(f"Generated OTP: {otp_code}")  # Debugging line
-        
-        # Send OTP via email
-        subject = "Your Login OTP for Youth in Tech Tanzania"
-        message = (
-            f"Hello {user.first_name},\n\n"
-            f"Your one-time password (OTP) for logging into Youth in Tech Tanzania is: {otp_code}\n\n"
-            f"This OTP will expire in 30 seconds. If you did not request this login, "
-            f"please contact our support team immediately.\n\n"
-            f"Best regards,\nYouth in Tech Tanzania Team"
-        )
-        # send_mail(
-        #     subject,
-        #     message,
-        #     settings.DEFAULT_FROM_EMAIL,
-        #     [user.email],
-        #     fail_silently=False,
-        # )
-        
-        # Generate a temporary token for the OTP verification step
-        temp_token = str(uuid.uuid4())
-        
-        # Save the temporary token in the session
-        request.session['temp_token'] = temp_token
-        request.session['user_id'] = user.id
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
         
         return Response({
-            'message': 'First factor authentication successful. Please check your email for OTP.',
-            'temp_token': temp_token
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': UserProfileSerializer(user).data
         }, status=status.HTTP_200_OK)
 
 
-# {
-#         "password": "123456",
-#         "username": "Esmeralda85"
-# }
-
-class VerifyOTPView(APIView):
+class SocialAuthView(APIView):
     """
-    API endpoint for OTP verification (second factor)
+    API endpoint for social authentication
     """
     permission_classes = [permissions.AllowAny]
     
-    def post(self, request, *args, **kwargs):
-        otp = request.data.get('otp')
-        temp_token = request.data.get('temp_token')
+    @psa('social:complete')
+    def post(self, request, backend, *args, **kwargs):
+        """
+        Exchange the OAuth token for JWT tokens
+        """
+        token = request.data.get('access_token')
+        if not token:
+            return Response({'error': 'No token provided'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validate temporary token
-        if not temp_token or temp_token != request.session.get('temp_token'):
-            return Response({'error': 'Invalid or expired session'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get user_id from session
-        user_id = request.session.get('user_id')
-        if not user_id:
-            return Response({'error': 'Invalid session'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        # Authenticate via the social backend
         try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Validate OTP
-        try:
-            device = TOTPDevice.objects.get(user=user)
-            totp = pyotp.TOTP(device.key)
-            
-            if totp.verify(otp):
-                # OTP is valid, generate access token
-                refresh = RefreshToken.for_user(user)
+            user = request.backend.do_auth(token)
+            if user:
+                # Check if user is marked as deleted
+                if hasattr(user, 'is_deleted') and user.is_deleted:
+                    return Response({'error': 'User account has been deactivated'}, 
+                                    status=status.HTTP_400_BAD_REQUEST)
                 
-                # Clean up session
-                if 'temp_token' in request.session:
-                    del request.session['temp_token']
-                if 'user_id' in request.session:
-                    del request.session['user_id']
+                # Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
                 
                 return Response({
                     'refresh': str(refresh),
@@ -259,96 +186,10 @@ class VerifyOTPView(APIView):
                     'user': UserProfileSerializer(user).data
                 }, status=status.HTTP_200_OK)
             else:
-                return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
-                
-        except TOTPDevice.DoesNotExist:
-            return Response({'error': 'OTP device not configured'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ResendOTPView(APIView):
-    """
-    API endpoint for resending OTP
-    """
-    permission_classes = [permissions.AllowAny]
-    
-    def post(self, request, *args, **kwargs):
-        temp_token = request.data.get('temp_token')
-        
-        # Validate temporary token
-        if not temp_token or temp_token != request.session.get('temp_token'):
-            return Response({'error': 'Invalid or expired session'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get user_id from session
-        user_id = request.session.get('user_id')
-        if not user_id:
-            return Response({'error': 'Invalid session'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Generate new OTP
-        try:
-            device = TOTPDevice.objects.get(user=user)
-            totp = pyotp.TOTP(device.key)
-            otp_code = totp.now()
-            
-            # Send OTP via email
-            subject = "Your Login OTP for Youth in Tech Tanzania"
-            message = (
-                f"Hello {user.first_name},\n\n"
-                f"Your new one-time password (OTP) for logging into Youth in Tech Tanzania is: {otp_code}\n\n"
-                f"This OTP will expire in 30 seconds. If you did not request this login, "
-                f"please contact our support team immediately.\n\n"
-                f"Best regards,\nYouth in Tech Tanzania Team"
-            )
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
-            )
-            
-            return Response({
-                'message': 'A new OTP has been sent to your email address.'
-            }, status=status.HTTP_200_OK)
-                
-        except TOTPDevice.DoesNotExist:
-            # Create a device if it doesn't exist
-            secret_key = pyotp.random_base32()
-            device = TOTPDevice.objects.create(
-                user=user,
-                name=f"{user.username}'s device",
-                confirmed=True,
-                key=secret_key
-            )
-            
-            # Generate OTP with the new device
-            totp = pyotp.TOTP(device.key)
-            otp_code = totp.now()
-            
-            # Send OTP via email
-            subject = "Your Login OTP for Youth in Tech Tanzania"
-            message = (
-                f"Hello {user.first_name},\n\n"
-                f"Your one-time password (OTP) for logging into Youth in Tech Tanzania is: {otp_code}\n\n"
-                f"This OTP will expire in 30 seconds. If you did not request this login, "
-                f"please contact our support team immediately.\n\n"
-                f"Best regards,\nYouth in Tech Tanzania Team"
-            )
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
-            )
-            
-            return Response({
-                'message': 'A new OTP has been sent to your email address.'
-            }, status=status.HTTP_200_OK)
+                return Response({'error': 'Authentication failed'}, 
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SkillViewSet(viewsets.ModelViewSet):
