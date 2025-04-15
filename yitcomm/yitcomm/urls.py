@@ -21,6 +21,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/accounts/', include('apps.accounts.urls')),
     path('api/v1/projects/', include('apps.projects.urls')),
+    path('api/v1/blogs/', include('apps.blogs.urls')),
+    path('api/v1/polls/', include('apps.polls.urls')),
+    path('api/v1/forums/', include('apps.forums.urls')),
+    path('api/v1/events/', include('apps.events.urls')),
+    path('api/v1/newsletters/', include('apps.newsletters.urls')),
     path('auth/', include('social_django.urls', namespace='social')),
     
 ]

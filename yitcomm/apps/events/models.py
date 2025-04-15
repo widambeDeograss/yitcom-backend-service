@@ -3,6 +3,8 @@ from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+from apps.accounts.models import TechCategory, User
+
 class Event(models.Model):
     EVENT_STATUS = (
         ('upcoming', 'Upcoming'),

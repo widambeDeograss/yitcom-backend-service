@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from yitcomm.apps.accounts.models import Skill, TechCategory, User
-from yitcomm.apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
-from yitcomm.apps.newsletters.models import Newsletter, NewsletterSubscription
+from apps.accounts.models import Skill, TechCategory, User
+from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
+from apps.newsletters.models import Newsletter, NewsletterSubscription
 
 class NewsletterSubscriptionSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)

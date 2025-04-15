@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from yitcomm.apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
+from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
+from apps.accounts.models import TechCategory
 from .models import Forum, Discussion, Comment, Reaction
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -55,7 +56,7 @@ class ForumSerializer(serializers.ModelSerializer):
         model = Forum
         fields = ('id', 'title', 'description', 'category',
                  'created_by', 'created_at', 'discussion_count',
-                 'latest_discussion', 'is_public', 'is_locked', )
+                 'latest_discussion', 'is_public', 'locked', )
         read_only_fields = ('created_at', 'discussion_count')
 
     def get_latest_discussion(self, obj):

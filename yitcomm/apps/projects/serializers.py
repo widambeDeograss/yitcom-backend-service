@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from yitcomm.apps.accounts.models import Skill, TechCategory, User
-from yitcomm.apps.accounts.serializers import SkillSerializer, TechCategorySerializer, UserProfileSerializer
-from yitcomm.apps.projects.models import Project
+from apps.accounts.models import Skill, TechCategory, User
+from apps.accounts.serializers import SkillSerializer, TechCategorySerializer, UserProfileSerializer
+from apps.projects.models import Project
 
 class ProjectSerializer(serializers.ModelSerializer):
     author = UserProfileSerializer(read_only=True)

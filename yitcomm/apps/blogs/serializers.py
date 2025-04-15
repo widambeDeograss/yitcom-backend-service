@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from yitcomm.apps.accounts.serializers import UserProfileSerializer
+from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
 from .models import Blog, Reaction, Comment
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -36,6 +36,7 @@ class CommentSerializer(serializers.ModelSerializer):
             reaction = obj.reactions.filter(user=user).first()
             return reaction.reaction_type if reaction else None
         return None
+    
 
 class BlogSerializer(serializers.ModelSerializer):
     author = UserProfileSerializer(read_only=True)
@@ -61,3 +62,9 @@ class BlogSerializer(serializers.ModelSerializer):
     def get_comments(self, obj):
         comments = obj.comments.filter(parent__isnull=True).order_by('-created_at')[:10]
         return CommentSerializer(comments, many=True, context=self.context).data
+    
+
+class BlogCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Blog
+        fields = ['title', 'content', 'categories', 'is_published', 'featured_image', 'draft']

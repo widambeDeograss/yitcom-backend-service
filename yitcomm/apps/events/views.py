@@ -9,6 +9,7 @@ from icalendar import Calendar, Event as ICalEvent
 from .models import Event, TechNews
 from .serializers import EventSerializer, NotificationSerializer, TechNewsSerializer
 from .tasks import send_event_notification, send_news_notification
+from django_filters.rest_framework import DjangoFilterBackend
 
 class EventICalView(APIView):
     def get(self, request, pk):
@@ -29,7 +30,7 @@ class EventICalView(APIView):
 class EventListCreateView(generics.ListCreateAPIView):
     serializer_class = EventSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [ DjangoFilterBackend]
     search_fields = ['title', 'description']
     filterset_fields = ['categories', 'status', 'is_online']
 
@@ -43,7 +44,7 @@ class EventListCreateView(generics.ListCreateAPIView):
 class TechNewsListCreateView(generics.ListCreateAPIView):
     serializer_class = TechNewsSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [ DjangoFilterBackend]
     search_fields = ['title', 'content']
     filterset_fields = ['categories', 'news_type', 'is_featured']
 

@@ -45,6 +45,11 @@ INSTALLED_APPS = [
     "corsheaders",
     'apps.accounts',
     'apps.projects',
+    'apps.blogs',
+    'apps.polls',
+    'apps.forums',
+    'apps.events',
+    'apps.newsletters',  
     'social_django',
 ]
 

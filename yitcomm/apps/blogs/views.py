@@ -1,9 +1,49 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.contenttypes.models import ContentType
+from apps.blogs.filters import BlogFilter
 from .models import Blog, Reaction, Comment
-from .serializers import BlogSerializer, ReactionSerializer, CommentSerializer
+from .serializers import BlogCreateSerializer, BlogSerializer, ReactionSerializer, CommentSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+
+class BlogListCreateAPI(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    queryset = Blog.objects.filter(is_published=True, deleted=False)
+    filter_backends = [DjangoFilterBackend, BlogFilter]
+    filterset_class =BlogFilter
+    search_fields = ['title', 'content', 'author__username', 'categories__name']
+    ordering_fields = ['published_at', 'created_at', 'views']
+    ordering = ['-published_at']
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return BlogCreateSerializer
+        return BlogSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+class BlogDetailAPI(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    queryset = Blog.objects.filter(deleted=False)
+    serializer_class = BlogSerializer
+    lookup_field = 'slug'
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Increment view count using F() to prevent race condition
+        Blog.objects.filter(pk=instance.pk).update(views=F('views') + 1)
+        instance.refresh_from_db()
+        
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def perform_destroy(self, instance):
+        instance.deleted = True
+        instance.save()
+
 
 class BlogReactionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -70,3 +110,51 @@ class NestedCommentCreateView(generics.CreateAPIView):
             object_id=parent_comment.object_id,
             parent=parent_comment
         )
+
+
+class ReactionAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, slug):
+        blog = generics.get_object_or_404(Blog, slug=slug)
+        reaction_type = request.data.get('reaction_type')
+        
+        reaction, created = Reaction.objects.update_or_create(
+            user=request.user,
+            content_type=ContentType.objects.get_for_model(blog),
+            object_id=blog.id,
+            defaults={'reaction_type': reaction_type}
+        )
+        
+        serializer = ReactionSerializer(reaction)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+class CommentListCreateAPI(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        blog = generics.get_object_or_404(Blog, slug=self.kwargs['slug'])
+        return Comment.objects.filter(
+            content_type=ContentType.objects.get_for_model(blog),
+            object_id=blog.id,
+            parent__isnull=True
+        )
+
+    def perform_create(self, serializer):
+        blog = generics.get_object_or_404(Blog, slug=self.kwargs['slug'])
+        serializer.save(
+            author=self.request.user,
+            content_type=ContentType.objects.get_for_model(blog),
+            object_id=blog.id
+        )
+
+class CommentDetailAPI(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    queryset = Comment.objects.all()
+
+    def perform_destroy(self, instance):
+        instance.content = "[deleted]"
+        instance.author = None
+        instance.save()

@@ -4,10 +4,11 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
-from yitcomm.apps.accounts import models
+from apps.accounts import models
 from .models import Newsletter, NewsletterSubscription
 from .serializers import NewsletterSerializer, NewsletterSubscriptionSerializer
-from yitcomm.apps.accounts.models import TechCategory, User
+from apps.accounts.models import TechCategory, User
+from django_filters.rest_framework import DjangoFilterBackend
 
 class NewsletterSubscriptionView(generics.ListCreateAPIView):
     serializer_class = NewsletterSubscriptionSerializer
@@ -50,7 +51,7 @@ class SubscriptionPreferencesView(generics.RetrieveUpdateDestroyAPIView):
 class NewsletterListView(generics.ListAPIView):
     serializer_class = NewsletterSerializer
     queryset = Newsletter.objects.filter(sent_at__isnull=False)
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ['title', 'content']
     filterset_fields = ['categories'] 
 

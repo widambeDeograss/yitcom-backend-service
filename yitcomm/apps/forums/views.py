@@ -4,6 +4,7 @@ from .models import Forum, Discussion, Comment, Reaction
 from .serializers import ForumCreateSerializer, ForumSerializer, DiscussionSerializer, CommentSerializer, ReactionSerializer
 from .permissions import IsOwnerOrModerator
 from django.contrib.contenttypes.models import ContentType
+from django_filters.rest_framework import DjangoFilterBackend
 
 class ForumListCreateView(generics.ListCreateAPIView):
     serializer_class = ForumSerializer

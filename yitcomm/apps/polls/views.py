@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from .models import TechPoll, PollVote
 from .serializers import TechPollSerializer, PollVoteSerializer
 from .permissions import IsAdminOrReadOnly
+from django_filters.rest_framework import DjangoFilterBackend
 
 class TechPollListCreateView(generics.ListCreateAPIView):
     serializer_class = TechPollSerializer

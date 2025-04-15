@@ -1,8 +1,13 @@
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from apps.accounts.models import TechCategory, User
 
-from yitcomm.apps.accounts.models import TechCategory, User
+class Tag(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
 
 class Forum(models.Model):
     """Discussion forums with enhanced moderation"""
@@ -15,7 +20,10 @@ class Forum(models.Model):
     is_public = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
     featured_image = models.ImageField(upload_to='forum_images/', blank=True, null=True)
-    tags = models.ManyToManyField('Tag', blank=True, related_name='forums')
+    tags = models.ManyToManyField(Tag, blank=True,  through='Forum_tags', related_name='forums_tagged')
+    followers = models.ManyToManyField(User, related_name='followed_forums', blank=True)
+    followers_count = models.PositiveIntegerField(default=0)
+    views = models.PositiveIntegerField(default=0)
     pinned_discussions = models.ManyToManyField('Discussion', blank=True, related_name='pinned_forums')
     deleted = models.BooleanField(default=False)
     drafted = models.BooleanField(default=False)
@@ -28,6 +36,12 @@ class Forum(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Forum_tags(models.Model):
+    forum = models.ForeignKey(Forum, on_delete=models.CASCADE)
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE) 
+
 
 class Discussion(models.Model):
     """Discussion threads with engagement tracking"""
@@ -54,7 +68,7 @@ class Discussion(models.Model):
 class Comment(models.Model):
     """Nested comments for discussions"""
     discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_comments')
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -78,8 +92,8 @@ class Reaction(models.Model):
         ('👏', 'Clapping Hands'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_reactions')
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='forum_reactions')
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
     reaction = models.CharField(max_length=2, choices=REACTION_CHOICES)
@@ -87,3 +101,9 @@ class Reaction(models.Model):
 
     class Meta:
         unique_together = ('user', 'content_type', 'object_id')
+
+
+
+        
+
+

@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from yitcomm.apps.accounts.models import User, TechCategory
+from apps.accounts.models import User, TechCategory
 
 class TechPoll(models.Model):
     title = models.CharField(max_length=200)

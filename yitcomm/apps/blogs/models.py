@@ -1,13 +1,16 @@
+from datetime import timezone
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+
+from apps.accounts.models import TechCategory, User
 
 class Blog(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=250, unique_for_date='published_at')
     content = models.TextField()
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blogs')
-    categories = models.ManyToManyField(TechCategory, related_name='blogs')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blog_author')
+    categories = models.ManyToManyField(TechCategory, related_name='blog_categories')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -16,7 +19,6 @@ class Blog(models.Model):
     views = models.PositiveIntegerField(default=0)
     deleted = models.BooleanField(default=False)
     draft = models.BooleanField(default=False)
-    
     
     class Meta:
         ordering = ['-published_at']
@@ -42,7 +44,7 @@ class Reaction(models.Model):
         ('rocket', '🚀'),
     )
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blog_reactions')
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -57,11 +59,11 @@ class Reaction(models.Model):
 
 class Comment(models.Model):
     content = models.TextField()
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blog_comments')
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='blog_reactions')
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
 

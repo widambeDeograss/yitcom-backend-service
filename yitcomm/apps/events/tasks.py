@@ -1,11 +1,11 @@
-from celery import shared_task
+# from celery import shared_task
 from django.contrib.auth import get_user_model
 
-from yitcomm.apps.accounts.models import Notification
+from apps.accounts.models import Notification
 from .models import Event, TechNews
 
 
-@shared_task
+# @shared_task
 def send_event_notification(event_id):
     event = Event.objects.get(id=event_id)
     users = get_user_model().objects.all()
@@ -19,7 +19,7 @@ def send_event_notification(event_id):
             content_object=event
         )
 
-@shared_task
+# @shared_task
 def send_news_notification(news_id):
     news = TechNews.objects.get(id=news_id)
     users = get_user_model().objects.all()

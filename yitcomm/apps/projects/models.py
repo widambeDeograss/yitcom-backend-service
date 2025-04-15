@@ -1,6 +1,6 @@
 from django.db import models
 
-from yitcomm.apps.accounts.models import Skill, TechCategory, User
+from apps.accounts.models import Skill, TechCategory, User
 
 # Create your models here.
 class Project(models.Model):

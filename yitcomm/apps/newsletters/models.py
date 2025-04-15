@@ -1,6 +1,6 @@
 from django.db import models
 
-from yitcomm.apps.accounts.models import TechCategory, User
+from apps.accounts.models import TechCategory, User
 
 class NewsletterSubscription(models.Model):
     """Newsletter subscription management."""

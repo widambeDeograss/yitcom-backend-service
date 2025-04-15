@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import TechPoll, PollOption, PollVote
-from yitcomm.apps.accounts.serializers import UserProfileSerializer
+from apps.accounts.serializers import UserProfileSerializer
 
 class PollOptionSerializer(serializers.ModelSerializer):
     vote_count = serializers.IntegerField(read_only=True)

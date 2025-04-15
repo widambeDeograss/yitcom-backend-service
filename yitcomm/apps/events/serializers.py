@@ -3,8 +3,8 @@ from icalendar import Calendar, Event as ICalEvent
 from django.utils import timezone
 from django.urls import reverse
 
-from yitcomm.apps.accounts.models import Notification
-from yitcomm.apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
+from apps.accounts.models import Notification
+from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
 from .models import Event, EventRegistration, TechNews
 
 class TechNewsSerializer(serializers.ModelSerializer):
