@@ -57,8 +57,8 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'apps.accounts.middleware.UpdateLastActivityMiddleware',
-    'apps.accounts.middleware.CheckUserStatusMiddleware',
+    # 'apps.accounts.middleware.UpdateLastActivityMiddleware',
+    # 'apps.accounts.middleware.CheckUserStatusMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -67,6 +67,14 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'yitcomm.urls'
+
+# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+
+
+CORS_ALLOW_CREDENTIALS = True
 
 TEMPLATES = [
     {
