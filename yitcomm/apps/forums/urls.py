@@ -1,5 +1,8 @@
 from django.urls import path
 from .views import (
+    FollowForumView,
+    ForumCategoriesListView,
+    ForumFollowersView,
     ForumListCreateView,
     ForumDetailView,
     DiscussionListCreateView,
@@ -13,4 +16,7 @@ urlpatterns = [
     path('forums/<int:forum_id>/discussions/', DiscussionListCreateView.as_view(), name='discussion-list'),
     path('discussions/<int:pk>/', DiscussionDetailView.as_view(), name='discussion-detail'),
     path('reactions/<str:content_type>/<int:object_id>/', ReactionView.as_view(), name='reaction'),
+    path('forums/<int:forum_id>/follow/', FollowForumView.as_view(), name='forum-follow'),
+    path('forums/<int:forum_id>/followers/', ForumFollowersView.as_view(), name='forum-followers'),
+    path('forum-categories/', ForumCategoriesListView.as_view(), name='forum-categories-list'),
 ]

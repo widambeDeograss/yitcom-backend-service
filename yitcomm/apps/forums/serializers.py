@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
 from apps.accounts.models import TechCategory
 from .models import Forum, Discussion, Comment, Reaction
+from django.contrib.contenttypes.models import ContentType
 
 class ReactionSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
@@ -39,11 +40,21 @@ class DiscussionSerializer(serializers.ModelSerializer):
                  'created_at', 'updated_at', 'is_pinned', 'is_locked',
                  'views', 'reactions', 'comments', 'user_reaction')
         read_only_fields = ('created_at', 'updated_at', 'views')
-
+    
     def get_user_reaction(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
-            reaction = obj.reactions.filter(user=user).first()
+            # Get the content type for the Discussion model
+            content_type = ContentType.objects.get_for_model(Discussion)
+            
+            # Query the Reaction model directly
+            from .models import Reaction  # Import here to avoid circular imports
+            reaction = Reaction.objects.filter(
+                content_type=content_type,
+                object_id=obj.id,
+                user=user
+            ).first()
+            
             return reaction.reaction if reaction else None
         return None
 
@@ -51,6 +62,7 @@ class ForumSerializer(serializers.ModelSerializer):
     category = TechCategorySerializer(read_only=True)
     discussion_count = serializers.IntegerField(read_only=True)
     latest_discussion = serializers.SerializerMethodField()
+    created_by = UserProfileSerializer(read_only=True)
     
     class Meta:
         model = Forum
@@ -69,3 +81,12 @@ class ForumCreateSerializer(ForumSerializer):
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
+
+class CategoryWithForumStatsSerializer(serializers.ModelSerializer):
+    forum_count = serializers.IntegerField(read_only=True)
+    active_forum_count = serializers.IntegerField(read_only=True)
+    public_forum_count = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = TechCategory
+        fields = ['id', 'name', 'forum_count', 'active_forum_count', 'public_forum_count']

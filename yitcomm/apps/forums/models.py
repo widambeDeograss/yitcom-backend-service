@@ -36,6 +36,11 @@ class Forum(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def update_followers_count(self):
+        """Update followers count efficiently"""
+        self.followers_count = self.followers.count()
+        self.save(update_fields=['followers_count'])
 
 
 class Forum_tags(models.Model):

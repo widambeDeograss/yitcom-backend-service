@@ -118,10 +118,6 @@ DATABASES = {
     }
 }
 
-REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50
-}
 
 # CHANNEL_LAYERS = {
 #     'default': {
@@ -157,7 +153,8 @@ REST_FRAMEWORK = {
         'apps.accounts.middleware.CustomJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
-    # ...
+     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50
 }
 
 AUTHENTICATION_BACKENDS = [
