@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from apps.accounts.models import Notification
 from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
-from .models import Event, EventRegistration, TechNews
+from .models import Event, EventImage, EventRegistration, TechNews
 
 class TechNewsSerializer(serializers.ModelSerializer):
     author = UserProfileSerializer(read_only=True)
@@ -25,6 +25,12 @@ class TechNewsSerializer(serializers.ModelSerializer):
             return 'expired'
         return 'active'
 
+class EventImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventImage
+        fields = ('id', 'image', 'caption', 'order')
+
+
 class EventSerializer(serializers.ModelSerializer):
     organizer = UserProfileSerializer(read_only=True)
     categories = TechCategorySerializer(many=True, read_only=True)
@@ -32,6 +38,7 @@ class EventSerializer(serializers.ModelSerializer):
     user_registered = serializers.SerializerMethodField()
     status = serializers.CharField(read_only=True)
     ical_url = serializers.SerializerMethodField()
+    images = EventImageSerializer(many=True, read_only=True)
     
     class Meta:
         model = Event
@@ -39,23 +46,33 @@ class EventSerializer(serializers.ModelSerializer):
                  'is_online', 'meeting_url', 'start_time', 'end_time', 'timezone',
                  'categories', 'featured_image', 'max_participants', 'status',
                  'participant_count', 'user_registered', 'requires_registration',
-                 'ical_url', 'is_full')
+                 'ical_url', 'is_full', 'google_form_url', 'images')
         read_only_fields = ('slug', 'created_at', 'status', 'is_full')
-
+    
     def get_user_registered(self, obj):
         user = self.context['request'].user
-        return obj.registrations.filter(user=user).exists() if user.is_authenticated else False
-
+        if user.is_authenticated:
+            registration = obj.registrations.filter(user=user).first()
+            return {
+                'registered': True,
+                'attended': registration.attended if registration else False,
+                'waitlisted': registration.waitlisted if registration else False
+            }
+        return None
+    
     def get_ical_url(self, obj):
-        return self.context['request'].build_absolute_uri(
-            reverse('event-ical', kwargs={'pk': obj.pk})
-        )
-
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(
+                reverse('event-ical', kwargs={'pk': obj.pk})
+            )
+        return None
+    
     def validate(self, data):
         if data['start_time'] >= data['end_time']:
             raise serializers.ValidationError("End time must be after start time")
         return data
-
+    
 class EventRegistrationSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
     event = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -64,6 +81,7 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
         model = EventRegistration
         fields = ('id', 'event', 'user', 'registered_at', 'attended', 'waitlisted')
         read_only_fields = ('registered_at', 'attended', 'waitlisted')
+        
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:

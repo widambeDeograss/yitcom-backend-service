@@ -1,9 +1,9 @@
 from django.db import models
 from django.utils import timezone
-from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
-from apps.accounts.models import TechCategory, User
+from apps.accounts.models import Notification, TechCategory, User
 
 class Event(models.Model):
     EVENT_STATUS = (
@@ -30,6 +30,12 @@ class Event(models.Model):
     requires_registration = models.BooleanField(default=True)
     timezone = models.CharField(max_length=50, default='UTC')
 
+      # New field for external registration via Google Form
+    google_form_url = models.URLField(blank=True, help_text="Optional Google Form URL for external registration")
+    
+    # Add generic relation to allow notifications about this event
+    notifications = GenericRelation(Notification)
+
     class Meta:
         ordering = ['-start_time']
         indexes = [
@@ -49,6 +55,23 @@ class Event(models.Model):
     @property
     def duration(self):
         return self.end_time - self.start_time
+    
+
+
+class EventImage(models.Model):
+    """Model to store multiple images for an event"""
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='event_images/')
+    caption = models.CharField(max_length=200, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.event.title} - Image {self.order}"
+    
+
 
 class EventRegistration(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations')
@@ -95,4 +118,5 @@ class TechNews(models.Model):
 
     def __str__(self):
         return self.title
+
 

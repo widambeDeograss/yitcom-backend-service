@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
+from yitcomm.apps.accounts.models import TechCategory
 from .models import Blog, Reaction, Comment
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -68,3 +69,11 @@ class BlogCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Blog
         fields = ['title', 'content', 'categories', 'is_published', 'featured_image', 'draft']
+
+
+class CategoryWithBlogStatsSerializer(serializers.ModelSerializer):
+    blogs_count = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = TechCategory
+        fields = ['id', 'name', 'blogs_count']

@@ -49,4 +49,5 @@ class PollVote(models.Model):
         unique_together = ('user', 'poll')
         indexes = [
             models.Index(fields=['-voted_at']),
+
         ]

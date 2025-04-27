@@ -4,12 +4,27 @@ from .models import TechPoll, PollOption, PollVote
 from apps.accounts.serializers import UserProfileSerializer
 
 class PollOptionSerializer(serializers.ModelSerializer):
-    vote_count = serializers.IntegerField(read_only=True)
+    vote_count = serializers.SerializerMethodField()
+    vote_percentage = serializers.SerializerMethodField()
     
     class Meta:
         model = PollOption
-        fields = ['id', 'text', 'order', 'vote_count']
+        fields = ['id', 'text', 'order', 'vote_count', 'vote_percentage']
         read_only_fields = ['id']
+
+    def get_vote_percentage(self, obj):
+        total_votes = obj.poll.votes.count()
+        if total_votes == 0:
+            return 0
+        return round((obj.votes.count() / total_votes) * 100, 2)
+    
+    def get_vote_count(self, obj):
+        # If the count was already annotated, use that
+        if hasattr(obj, 'vote_count'):
+            return obj.vote_count
+        # Otherwise count the related votes
+        return obj.votes.count()
+    
 
 class TechPollSerializer(serializers.ModelSerializer):
     created_by = UserProfileSerializer(read_only=True)
@@ -33,6 +48,9 @@ class TechPollSerializer(serializers.ModelSerializer):
             vote = obj.votes.filter(user=user).first()
             return vote.option.id if vote else None
         return None
+    
+    def get_total_votes(self, obj):
+        return obj.votes.count()
     
     def validate(self, data):
         if self.instance and self.instance.published:
@@ -70,3 +88,5 @@ class PollVoteSerializer(serializers.ModelSerializer):
         validated_data['user'] = self.context['request'].user
         validated_data['poll'] = validated_data['option'].poll
         return super().create(validated_data)
+    
+

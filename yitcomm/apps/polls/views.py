@@ -1,9 +1,12 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import TechPoll, PollVote
 from .serializers import TechPollSerializer, PollVoteSerializer
 from .permissions import IsAdminOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count
+
 
 class TechPollListCreateView(generics.ListCreateAPIView):
     serializer_class = TechPollSerializer
@@ -12,9 +15,23 @@ class TechPollListCreateView(generics.ListCreateAPIView):
     search_fields = ['title', 'description']
     
     def get_queryset(self):
-        return TechPoll.objects.filter(
+        queryset = TechPoll.objects.filter(
             published=True
-        ).prefetch_related('options', 'categories')
+        ).prefetch_related(
+            'options', 
+            'categories',
+            'options__votes',
+            'votes'
+        ).annotate(
+            total_votes=Count('votes')
+        )
+        
+        # Annotate each option with its vote count
+        for poll in queryset:
+            poll.options.all().annotate(vote_count=Count('votes'))
+            
+        return queryset
+
     
     def perform_create(self, serializer):
         if not self.request.user.is_staff:
@@ -25,6 +42,24 @@ class TechPollDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = TechPoll.objects.all()
     serializer_class = TechPollSerializer
     permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        queryset = TechPoll.objects.filter(
+            published=True
+        ).prefetch_related(
+            'options', 
+            'categories',
+            'options__votes',
+            'votes'
+        ).annotate(
+            total_votes=Count('votes')
+        )
+        
+        # Annotate each option with its vote count
+        for poll in queryset:
+            poll.options.all().annotate(vote_count=Count('votes'))
+            
+        return queryset
     
     def perform_update(self, serializer):
         if serializer.instance.published:

@@ -3,9 +3,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.contenttypes.models import ContentType
 from apps.blogs.filters import BlogFilter
+from yitcomm.apps.accounts.models import TechCategory
 from .models import Blog, Reaction, Comment
-from .serializers import BlogCreateSerializer, BlogSerializer, ReactionSerializer, CommentSerializer
+from .serializers import BlogCreateSerializer, BlogSerializer, CategoryWithBlogStatsSerializer, ReactionSerializer, CommentSerializer
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import F, Count
 
 class BlogListCreateAPI(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -158,3 +160,16 @@ class CommentDetailAPI(generics.RetrieveUpdateDestroyAPIView):
         instance.content = "[deleted]"
         instance.author = None
         instance.save()
+
+class BlogsategoriesListView(generics.ListAPIView):
+    """
+    List all categories that have blogs, with counts of different forum types
+    """
+    serializer_class = CategoryWithBlogStatsSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        return TechCategory.objects.annotate(
+            blogs_count=Count('blogs', distinct=True),
+
+        ).filter(blogs_count__gt=0).order_by('-blogs_count', 'name')

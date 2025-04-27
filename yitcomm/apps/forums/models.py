@@ -2,12 +2,29 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from apps.accounts.models import TechCategory, User
+from django.contrib.contenttypes.fields import GenericRelation
+from django.db.models import Prefetch
+
+class DiscussionManager(models.Manager):
+    def with_reactions(self):
+        content_type = ContentType.objects.get_for_model(Discussion)
+        return self.get_queryset().prefetch_related(
+            Prefetch(
+                'reactions',
+                queryset=Reaction.objects.filter(
+                    content_type=content_type
+                ).select_related('user'),
+                to_attr='prefetched_reactions'
+            )
+        )
+    
 
 class Tag(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.name
+
 
 class Forum(models.Model):
     """Discussion forums with enhanced moderation"""
@@ -41,46 +58,16 @@ class Forum(models.Model):
         """Update followers count efficiently"""
         self.followers_count = self.followers.count()
         self.save(update_fields=['followers_count'])
+    
+    def increment_views(self):
+        self.views += 1
+        self.save(update_fields=['views'])
 
 
 class Forum_tags(models.Model):
     forum = models.ForeignKey(Forum, on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE) 
 
-
-class Discussion(models.Model):
-    """Discussion threads with engagement tracking"""
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discussions')
-    forum = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='discussions')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_pinned = models.BooleanField(default=False)
-    is_locked = models.BooleanField(default=False)
-    omitted = models.BooleanField(default=False)
-    views = models.PositiveIntegerField(default=0)
-    
-    class Meta:
-        ordering = ['-is_pinned', '-created_at']
-        indexes = [
-            models.Index(fields=['-created_at']),
-        ]
-
-    def __str__(self):
-        return self.title
-
-class Comment(models.Model):
-    """Nested comments for discussions"""
-    discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_comments')
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE)
-
-    class Meta:
-        ordering = ['created_at']
 
 class Reaction(models.Model):
     """User reactions to discussions/comments"""
@@ -106,6 +93,54 @@ class Reaction(models.Model):
 
     class Meta:
         unique_together = ('user', 'content_type', 'object_id')
+
+
+
+class Discussion(models.Model):
+    """Discussion threads with engagement tracking"""
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discussions')
+    forum = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='discussions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_pinned = models.BooleanField(default=False)
+    is_locked = models.BooleanField(default=False)
+    omitted = models.BooleanField(default=False)
+    views = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-is_pinned', '-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        return self.title
+    
+    # Add GenericRelation to enable reverse lookups
+    reactions = GenericRelation(
+        Reaction,
+        content_type_field='content_type',
+        object_id_field='object_id',
+        related_query_name='discussion'
+    )
+    
+    objects = DiscussionManager()
+    
+
+class Comment(models.Model):
+    """Nested comments for discussions"""
+    discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_comments')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ['created_at']
+
 
 
 

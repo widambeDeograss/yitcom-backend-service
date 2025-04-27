@@ -27,48 +27,65 @@ class CommentSerializer(serializers.ModelSerializer):
     def get_reply_count(self, obj):
         return obj.comment_set.count()
 
+
+class DiscussionCreateSerializer(serializers.ModelSerializer):
+    forum = serializers.PrimaryKeyRelatedField(queryset=Forum.objects.all())
+    
+    class Meta:
+        model = Discussion
+        fields = ('title', 'content', 'forum', 'author')
+    
+    def create(self, validated_data):
+        discussion = Discussion.objects.create(**validated_data)
+        return discussion
+    
+
 class DiscussionSerializer(serializers.ModelSerializer):
     author = UserProfileSerializer(read_only=True)
     forum = serializers.PrimaryKeyRelatedField(read_only=True)
-    reactions = ReactionSerializer(many=True, read_only=True)
+    reactions = serializers.SerializerMethodField()
     comments = CommentSerializer(many=True, read_only=True)
+    reactions_count = serializers.SerializerMethodField()
     user_reaction = serializers.SerializerMethodField()
     
     class Meta:
         model = Discussion
         fields = ('id', 'title', 'content', 'author', 'forum',
                  'created_at', 'updated_at', 'is_pinned', 'is_locked',
-                 'views', 'reactions', 'comments', 'user_reaction')
+                 'views', 'reactions', 'comments', 'user_reaction', 'reactions_count')
         read_only_fields = ('created_at', 'updated_at', 'views')
     
     def get_user_reaction(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
-            # Get the content type for the Discussion model
-            content_type = ContentType.objects.get_for_model(Discussion)
-            
-            # Query the Reaction model directly
-            from .models import Reaction  # Import here to avoid circular imports
-            reaction = Reaction.objects.filter(
-                content_type=content_type,
-                object_id=obj.id,
-                user=user
-            ).first()
-            
+            reaction = obj.reactions.filter(user=user).first()
             return reaction.reaction if reaction else None
         return None
+    
+    def get_reactions(self, obj):
+        if hasattr(obj, 'prefetched_reactions'):
+            return ReactionSerializer(obj.prefetched_reactions, many=True).data
+        return ReactionSerializer(obj.reactions.all(), many=True).data
+    
+    def get_reactions_count(self, obj):
+        if hasattr(obj, 'prefetched_reactions'):
+            return len(obj.prefetched_reactions)
+        return obj.reactions.count()
+    
 
 class ForumSerializer(serializers.ModelSerializer):
     category = TechCategorySerializer(read_only=True)
     discussion_count = serializers.IntegerField(read_only=True)
     latest_discussion = serializers.SerializerMethodField()
     created_by = UserProfileSerializer(read_only=True)
+    views = serializers.IntegerField(read_only=True)
+
     
     class Meta:
         model = Forum
         fields = ('id', 'title', 'description', 'category',
                  'created_by', 'created_at', 'discussion_count',
-                 'latest_discussion', 'is_public', 'locked', )
+                 'latest_discussion', 'is_public', 'locked', 'views', 'followers_count')
         read_only_fields = ('created_at', 'discussion_count')
 
     def get_latest_discussion(self, obj):

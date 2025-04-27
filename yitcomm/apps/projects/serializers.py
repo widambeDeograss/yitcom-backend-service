@@ -48,3 +48,11 @@ class ProjectSerializer(serializers.ModelSerializer):
                 validated_data['published'] = False
                 
             return super().create(validated_data)
+
+
+class CategoryWithProjectStatsSerializer(serializers.ModelSerializer):
+    project_count = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = TechCategory
+        fields = ['id', 'name', 'project_count']

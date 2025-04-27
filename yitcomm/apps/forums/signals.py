@@ -73,3 +73,41 @@ def notify_reaction(sender, instance, created, **kwargs):
                 content_type=ContentType.objects.get_for_model(instance),
                 object_id=instance.id
             )
+
+
+@receiver(post_save, sender=Discussion)
+def notify_forum_on_new_discussion(sender, instance, created, **kwargs):
+    if created:
+        # Notify forum followers
+        forum = instance.forum
+        followers = forum.followers.exclude(id=instance.author.id)
+        
+        notifications = []
+        for follower in followers:
+            notifications.append(
+                Notification(
+                    user=follower,
+                    notification_type='new_discussion',
+                    title=f"New discussion in {forum.title}",
+                    message=f"{instance.author.username} started a new discussion: {instance.title}",
+                    content_type=ContentType.objects.get_for_model(instance),
+                    object_id=instance.id
+                )
+            )
+        
+        # Bulk create notifications
+        if notifications:
+            Notification.objects.bulk_create(notifications)
+        
+        # Notify forum owner if different from author
+        if forum.created_by != instance.author:
+            Notification.objects.create(
+                user=forum.created_by,
+                notification_type='new_forum_discussion',
+                title=f"New discussion in your forum: {forum.title}",
+                message=f"{instance.author.username} started a new discussion in your forum",
+                content_type=ContentType.objects.get_for_model(instance),
+                object_id=instance.id
+            )
+
+        
