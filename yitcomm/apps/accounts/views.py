@@ -88,11 +88,7 @@ class UserViewSet(viewsets.ModelViewSet):
         except TechCategory.DoesNotExist:
             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
 
-
 class RegisterView(generics.CreateAPIView):
-    """
-    API endpoint for user registration
-    """
     serializer_class = UserSerializer
     permission_classes = [permissions.AllowAny]
     
@@ -101,29 +97,32 @@ class RegisterView(generics.CreateAPIView):
         if serializer.is_valid():
             user = serializer.save()
             
-            # Send welcome email
-            subject = "Welcome to Youth in Tech Tanzania"
-            message = (
-                f"Hello {user.first_name},\n\n"
-                f"Thank you for registering with Youth in Tech Tanzania. "
-                f"Your account has been created successfully.\n\n"
-                f"Best regards,\nYouth in Tech Tanzania Team"
-            )
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
-            )
+            # Send welcome email with error handling
+            try:
+                subject = "Welcome to Youth in Tech Tanzania"
+                message = (
+                    f"Hello {user.first_name},\n\n"
+                    f"Thank you for registering with Youth in Tech Tanzania. "
+                    f"Your account has been created successfully.\n\n"
+                    f"Best regards,\nYouth in Tech Tanzania Team"
+                )
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                # Log the error but don't fail the registration
+                print(f"Failed to send welcome email: {e}")
             
             return Response({
                 'user': UserSerializer(user).data,
                 'message': 'User registered successfully.'
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+    
 class LoginView(APIView):
     """
     API endpoint for user login with username and password
