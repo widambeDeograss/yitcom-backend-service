@@ -1,12 +1,10 @@
-from warnings import filters
 from django.urls import reverse
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from icalendar import Calendar, Event as ICalEvent
-
 from .permissions import IsOrganizerOrAdmin
 from .models import Event, EventImage, EventRegistration, TechNews
 from .serializers import EventImageSerializer, EventSerializer, NotificationSerializer, TechNewsSerializer
@@ -131,6 +129,7 @@ class EventListCreateView(generics.ListCreateAPIView):
     serializer_class = EventSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'description']
     filterset_fields = ['categories', 'status', 'is_online']
 
@@ -232,3 +231,14 @@ class EventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+class EventFeaturedView(generics.ListAPIView):
+    """
+    View for listing featured events.
+    """
+    serializer_class = EventSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        return Event.objects.filter(featured=True).order_by('-start_time')

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.contenttypes.models import ContentType
 from apps.blogs.filters import BlogFilter
-from yitcomm.apps.accounts.models import TechCategory
+from apps.accounts.models import TechCategory
 from .models import Blog, Reaction, Comment
 from .serializers import BlogCreateSerializer, BlogSerializer, CategoryWithBlogStatsSerializer, ReactionSerializer, CommentSerializer
 from django_filters.rest_framework import DjangoFilterBackend
@@ -12,7 +12,7 @@ from django.db.models import F, Count
 class BlogListCreateAPI(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     queryset = Blog.objects.filter(is_published=True, deleted=False)
-    filter_backends = [DjangoFilterBackend, BlogFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class =BlogFilter
     search_fields = ['title', 'content', 'author__username', 'categories__name']
     ordering_fields = ['published_at', 'created_at', 'views']
@@ -151,6 +151,28 @@ class CommentListCreateAPI(generics.ListCreateAPIView):
             object_id=blog.id
         )
 
+class CommentRplyListAPI(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        parent_comment = generics.get_object_or_404(Comment, pk=self.kwargs['comment_id'])
+        return Comment.objects.filter(
+            content_type=parent_comment.content_type,
+            object_id=parent_comment.object_id,
+            parent=parent_comment
+        ).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        parent_comment = generics.get_object_or_404(Comment, pk=self.kwargs['comment_id'])
+        serializer.save(
+            author=self.request.user,
+            content_type=parent_comment.content_type,
+            object_id=parent_comment.object_id,
+            parent=parent_comment
+        )
+        
+
 class CommentDetailAPI(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -170,6 +192,6 @@ class BlogsategoriesListView(generics.ListAPIView):
     
     def get_queryset(self):
         return TechCategory.objects.annotate(
-            blogs_count=Count('blogs', distinct=True),
+            blogs_count=Count('blog_categories', distinct=True),
 
         ).filter(blogs_count__gt=0).order_by('-blogs_count', 'name')

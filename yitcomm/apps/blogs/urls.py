@@ -5,7 +5,8 @@ from .views import (
     ReactionAPI,
     CommentListCreateAPI,
     CommentDetailAPI,
-    BlogsategoriesListView
+    BlogsategoriesListView,
+    CommentRplyListAPI,
 )
 
 urlpatterns = [
@@ -15,4 +16,6 @@ urlpatterns = [
     path('blogs/<slug:slug>/comments/', CommentListCreateAPI.as_view(), name='blog-comments'),
     path('comments/<int:pk>/', CommentDetailAPI.as_view(), name='comment-detail'),
     path('categories/', BlogsategoriesListView.as_view(), name='blog-categories'),
+    path('comments/<int:comment_id>/replies/', CommentRplyListAPI.as_view(), name='comment-replies'),
+
 ]

@@ -1,8 +1,9 @@
 from rest_framework import serializers
 
 from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
-from yitcomm.apps.accounts.models import TechCategory
+from apps.accounts.models import TechCategory
 from .models import Blog, Reaction, Comment
+from django.contrib.contenttypes.models import ContentType
 
 class ReactionSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
@@ -34,10 +35,15 @@ class CommentSerializer(serializers.ModelSerializer):
     def get_user_reaction(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
-            reaction = obj.reactions.filter(user=user).first()
+            content_type = ContentType.objects.get_for_model(Comment)
+            reaction = Reaction.objects.filter(
+                content_type=content_type,
+                object_id=obj.id,
+                user=user
+            ).first()
             return reaction.reaction_type if reaction else None
         return None
-    
+        
 
 class BlogSerializer(serializers.ModelSerializer):
     author = UserProfileSerializer(read_only=True)
@@ -56,13 +62,25 @@ class BlogSerializer(serializers.ModelSerializer):
     def get_user_reaction(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
-            reaction = obj.reactions.filter(user=user).first()
+            content_type = ContentType.objects.get_for_model(Blog)
+            reaction = Reaction.objects.filter(
+                content_type=content_type,
+                object_id=obj.id,
+                user=user
+            ).first()
             return reaction.reaction_type if reaction else None
         return None
 
+    
     def get_comments(self, obj):
-        comments = obj.comments.filter(parent__isnull=True).order_by('-created_at')[:10]
+        content_type = ContentType.objects.get_for_model(Blog)
+        comments = Comment.objects.filter(
+            content_type=content_type,
+            object_id=obj.id,
+            parent__isnull=True
+        ).order_by('-created_at')[:10]
         return CommentSerializer(comments, many=True, context=self.context).data
+
     
 
 class BlogCreateSerializer(serializers.ModelSerializer):

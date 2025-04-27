@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import TechPoll, PollVote
@@ -11,6 +11,7 @@ from django.db.models import Count
 class TechPollListCreateView(generics.ListCreateAPIView):
     serializer_class = TechPollSerializer
     permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['categories', 'published']
     search_fields = ['title', 'description']
     

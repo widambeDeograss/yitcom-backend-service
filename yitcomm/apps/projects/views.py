@@ -17,20 +17,6 @@ class ProjectListCreateView(generics.ListCreateAPIView):
     ordering_fields = ['created_at', 'updated_at']
     ordering = ['-created_at']
 
-    def get_queryset(self):
-        """Filter projects based on publication state and user"""
-        queryset = super().get_queryset()
-        user = self.request.user
-
-        # For authenticated users: show their drafts + published projects
-        if user.is_authenticated:
-            return queryset.filter(
-                models.Q(published=True) |
-                models.Q(drafted=True, author=user)
-            )
-        # For anonymous users: only published projects
-        return queryset.filter(published=True)
-
 
 class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Project.objects.all()

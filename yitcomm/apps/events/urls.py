@@ -4,7 +4,8 @@ from .views import (
     EventICalView,
     EventRetrieveUpdateDestroyView,
     TechNewsListCreateView,
-    NotificationListView
+    NotificationListView,
+    EventFeaturedView
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path('news/', TechNewsListCreateView.as_view(), name='news-list'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('events/<int:pk>/', EventRetrieveUpdateDestroyView.as_view(), name='event-detail'),
+    path('featured-events/', EventFeaturedView.as_view(), name='event-FEATURED'),
 ]

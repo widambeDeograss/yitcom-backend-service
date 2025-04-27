@@ -29,6 +29,7 @@ class Event(models.Model):
     status = models.CharField(max_length=20, choices=EVENT_STATUS, default='upcoming')
     requires_registration = models.BooleanField(default=True)
     timezone = models.CharField(max_length=50, default='UTC')
+    featured = models.BooleanField(default=False)
 
       # New field for external registration via Google Form
     google_form_url = models.URLField(blank=True, help_text="Optional Google Form URL for external registration")
