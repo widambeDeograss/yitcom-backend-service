@@ -3,6 +3,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 class User(AbstractUser):
     """Extended User model with additional fields for Youth in Tech Tanzania platform."""
@@ -143,3 +145,45 @@ class CommunityRole(models.Model):
     
     def __str__(self):
         return self.name
+    
+
+class Bookmark(models.Model):
+    """Generic bookmark system for saving any type of content."""
+    BOOKMARK_TYPES = (
+        ('blog', 'Blog Post'),
+        ('project', 'Project'),
+        ('forum', 'Forum'),
+        ('discussion', 'Discussion'),
+        ('event', 'Event'),
+        ('resource', 'Resource'),
+        ('user', 'User Profile'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
+    bookmark_type = models.CharField(max_length=20, choices=BOOKMARK_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Generic foreign key to the bookmarked content
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    # Optional fields
+    notes = models.TextField(blank=True, null=True)
+    is_private = models.BooleanField(default=False)
+    folder = models.CharField(max_length=100, blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Bookmark"
+        verbose_name_plural = "Bookmarks"
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['bookmark_type']),
+            models.Index(fields=['content_type', 'object_id']),
+            models.Index(fields=['created_at']),
+        ]
+        ordering = ['-created_at']
+        unique_together = ('user', 'content_type', 'object_id')  # Prevent duplicate bookmarks
+    
+    def __str__(self):
+        return f"{self.user.username} bookmarked {self.bookmark_type} #{self.object_id}"

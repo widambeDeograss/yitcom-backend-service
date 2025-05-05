@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
 from apps.accounts.models import TechCategory
+from apps.accounts.bookmark_util import get_bookmark_status
 from .models import Forum, Discussion, Comment, Reaction
 from django.contrib.contenttypes.models import ContentType
 
@@ -79,6 +80,7 @@ class ForumSerializer(serializers.ModelSerializer):
     latest_discussion = serializers.SerializerMethodField()
     created_by = UserProfileSerializer(read_only=True)
     views = serializers.IntegerField(read_only=True)
+    bookmark_status = serializers.SerializerMethodField()
 
     
     class Meta:
@@ -86,7 +88,11 @@ class ForumSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'category',
                  'created_by', 'created_at', 'discussion_count',
                  'latest_discussion', 'is_public', 'locked', 'views', 'followers_count')
-        read_only_fields = ('created_at', 'discussion_count')
+        read_only_fields = ('created_at', 'discussion_count', 'bookmark_status')
+    
+    def get_bookmark_status(self, obj):
+        request = self.context.get('request')
+        return get_bookmark_status(request.user if request else None, obj)
 
     def get_latest_discussion(self, obj):
         discussion = obj.discussions.order_by('-created_at').first()

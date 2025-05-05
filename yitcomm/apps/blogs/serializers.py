@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.accounts.serializers import TechCategorySerializer, UserProfileSerializer
 from apps.accounts.models import TechCategory
+from apps.accounts.bookmark_util import get_bookmark_status
 from .models import Blog, Reaction, Comment
 from django.contrib.contenttypes.models import ContentType
 
@@ -51,13 +52,19 @@ class BlogSerializer(serializers.ModelSerializer):
     reactions = ReactionSerializer(many=True, read_only=True)
     user_reaction = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
+    bookmark_status = serializers.SerializerMethodField()
+
     
     class Meta:
         model = Blog
         fields = ('id', 'title', 'slug', 'content', 'author', 'categories',
                  'published_at', 'is_published', 'featured_image', 'views',
                  'reactions', 'user_reaction', 'comments')
-        read_only_fields = ('slug', 'views', 'published_at')
+        read_only_fields = ('slug', 'views', 'published_at', 'bookmark_status')
+    
+    def get_bookmark_status(self, obj):
+        request = self.context.get('request')
+        return get_bookmark_status(request.user if request else None, obj)
 
     def get_user_reaction(self, obj):
         user = self.context['request'].user

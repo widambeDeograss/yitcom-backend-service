@@ -185,6 +185,8 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET')
 
 # User creation settings for social auth
 SOCIAL_AUTH_USER_MODEL = 'accounts.User'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 
 
 # Internationalization

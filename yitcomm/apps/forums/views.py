@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status, filters
 from rest_framework.response import Response
 
-from apps.accounts.models import Notification
+from apps.accounts.models import Bookmark, Notification
 from apps.accounts.serializers import UserSerializer
 from .models import Forum, Discussion, Comment, Reaction
 from .serializers import CategoryWithForumStatsSerializer, DiscussionCreateSerializer, ForumCreateSerializer, ForumSerializer, DiscussionSerializer, CommentSerializer, ReactionSerializer
@@ -17,7 +17,7 @@ class ForumListCreateView(generics.ListCreateAPIView):
     serializer_class = ForumSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['category', 'is_active', 'is_public']
+    filterset_fields = ['category', 'is_active', 'is_public', 'followers']  # Added 'followers'
     search_fields = ['title', 'description', 'category__name']
     
     def get_serializer_class(self):
@@ -28,7 +28,35 @@ class ForumListCreateView(generics.ListCreateAPIView):
             discussion_count=Count('discussions', distinct=True)
         ).select_related('category', 'created_by')
 
-        # Increment views if a single forum is being retrieved (DetailView)
+        # Filter for followed forums if requested
+        followed_by = self.request.query_params.get('followed_by')
+        if followed_by:
+            if followed_by == 'me':
+                queryset = queryset.filter(followers=self.request.user)
+            else:
+                try:
+                    user_id = int(followed_by)
+                    queryset = queryset.filter(followers__id=user_id)
+                except (ValueError, TypeError):
+                    pass
+        
+        # Filter for bookmarked forums if requested
+        bookmarked = self.request.query_params.get('bookmarked')
+        if bookmarked and self.request.user.is_authenticated:
+            if bookmarked.lower() == 'true':
+                # Get content type for Forum model
+                forum_content_type = ContentType.objects.get_for_model(Forum)
+                # Get IDs of bookmarked forums
+                bookmarked_forum_ids = Bookmark.objects.filter(
+                    user=self.request.user,
+                    content_type=forum_content_type
+                ).values_list('object_id', flat=True)
+                # Filter forums by bookmarked IDs
+                queryset = queryset.filter(id__in=bookmarked_forum_ids)
+
+    
+
+        # Increment views if a single forum is being retrieved
         if self.request.query_params.get('id'):
             forum_id = self.request.query_params.get('id')
             forum = queryset.filter(id=forum_id).first()
@@ -36,7 +64,8 @@ class ForumListCreateView(generics.ListCreateAPIView):
                 forum.increment_views()
 
         return queryset
-
+    
+    
 class ForumDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Forum.objects.all()
     serializer_class = ForumSerializer
@@ -127,9 +156,6 @@ class DiscussionDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().retrieve(request, *args, **kwargs)
     
 
-from django.contrib.contenttypes.models import ContentType
-from rest_framework import status
-from rest_framework.response import Response
 
 class ReactionView(generics.CreateAPIView, generics.DestroyAPIView):
     serializer_class = ReactionSerializer

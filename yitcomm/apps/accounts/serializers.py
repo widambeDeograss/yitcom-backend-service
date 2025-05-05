@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group, Permission
-from .models import User, Skill, TechCategory, CommunityRole, Notification
+from .models import User, Skill, TechCategory, CommunityRole, Notification, Bookmark
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,3 +88,56 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'first_name', 'last_name', 'profile_image')
+
+
+
+class BookmarkSerializer(serializers.ModelSerializer):
+    content_type = serializers.SlugRelatedField(
+        queryset=ContentType.objects.all(),
+        slug_field='model'
+    )
+    content_object = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bookmark
+        fields = [
+            'id', 'user', 'bookmark_type', 'content_type', 
+            'object_id', 'content_object', 'notes', 'tags',
+            'is_private', 'folder', 'created_at', 'is_bookmarked'
+        ]
+        read_only_fields = ['user', 'created_at', 'content_object', 'is_bookmarked']
+
+    def get_content_object(self, obj):
+        # Serialize the bookmarked object based on its type
+        from blogs.serializers import BlogSerializer  # Example import
+        from forums.serializers import ForumSerializer  # Example import
+        
+        model = obj.content_type.model
+        if model == 'blog':
+            return BlogSerializer(obj.content_object).data
+        elif model == 'forum':
+            return ForumSerializer(obj.content_object).data
+        # Add other model serializers as needed
+        return None
+
+    def get_is_bookmarked(self, obj):
+        # Useful when checking if an item is bookmarked
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Bookmark.objects.filter(
+                user=request.user,
+                content_type=obj.content_type,
+                object_id=obj.object_id
+            ).exists()
+        return False
+
+    def create(self, validated_data):
+        # Automatically set the user to the current user
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+class BookmarkCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bookmark
+        fields = ['bookmark_type', 'content_type', 'object_id', 'notes', 'folder']

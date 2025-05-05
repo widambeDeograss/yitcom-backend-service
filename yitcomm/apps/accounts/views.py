@@ -10,6 +10,10 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_django.utils import psa
 from .models import User, Skill, TechCategory, CommunityRole, Notification
+from .models import Bookmark
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from .serializers import BookmarkSerializer, BookmarkCreateSerializer
 from .serializers import (
     UserSerializer, 
     UserProfileSerializer, 
@@ -241,3 +245,88 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [permissions.IsAdminUser]
+
+
+class BookmarkListView(generics.ListCreateAPIView):
+    serializer_class = BookmarkSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return BookmarkCreateSerializer
+        return BookmarkSerializer
+
+    def get_queryset(self):
+        return Bookmark.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class BookmarkDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = BookmarkSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Bookmark.objects.filter(user=self.request.user)
+
+class CheckBookmarkView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        content_type = request.query_params.get('content_type')
+        object_id = request.query_params.get('object_id')
+
+        if not content_type or not object_id:
+            return Response(
+                {'error': 'content_type and object_id parameters are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            content_type = ContentType.objects.get(model=content_type)
+            is_bookmarked = Bookmark.objects.filter(
+                user=request.user,
+                content_type=content_type,
+                object_id=object_id
+            ).exists()
+            return Response({'is_bookmarked': is_bookmarked})
+        except ContentType.DoesNotExist:
+            return Response(
+                {'error': 'Invalid content_type'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class ToggleBookmarkView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        content_type = request.data.get('content_type')
+        object_id = request.data.get('object_id')
+        bookmark_type = request.data.get('bookmark_type')
+
+        if not all([content_type, object_id, bookmark_type]):
+            return Response(
+                {'error': 'content_type, object_id and bookmark_type are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            content_type = ContentType.objects.get(model=content_type)
+            bookmark, created = Bookmark.objects.get_or_create(
+                user=request.user,
+                content_type=content_type,
+                object_id=object_id,
+                defaults={'bookmark_type': bookmark_type}
+            )
+
+            if not created:
+                bookmark.delete()
+                return Response({'status': 'unbookmarked'})
+
+            return Response({'status': 'bookmarked'}, status=status.HTTP_201_CREATED)
+        except ContentType.DoesNotExist:
+            return Response(
+                {'error': 'Invalid content_type'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
