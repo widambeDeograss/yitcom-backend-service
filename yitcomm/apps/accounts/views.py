@@ -102,24 +102,24 @@ class RegisterView(generics.CreateAPIView):
             user = serializer.save()
             
             # Send welcome email with error handling
-            try:
-                subject = "Welcome to Youth in Tech Tanzania"
-                message = (
-                    f"Hello {user.first_name},\n\n"
-                    f"Thank you for registering with Youth in Tech Tanzania. "
-                    f"Your account has been created successfully.\n\n"
-                    f"Best regards,\nYouth in Tech Tanzania Team"
-                )
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                    fail_silently=False,
-                )
-            except Exception as e:
-                # Log the error but don't fail the registration
-                print(f"Failed to send welcome email: {e}")
+            # try:
+            #     subject = "Welcome to Youth in Tech Tanzania"
+            #     message = (
+            #         f"Hello {user.first_name},\n\n"
+            #         f"Thank you for registering with Youth in Tech Tanzania. "
+            #         f"Your account has been created successfully.\n\n"
+            #         f"Best regards,\nYouth in Tech Tanzania Team"
+            #     )
+            #     send_mail(
+            #         subject,
+            #         message,
+            #         settings.DEFAULT_FROM_EMAIL,
+            #         [user.email],
+            #         fail_silently=False,
+            #     )
+            # except Exception as e:
+            #     # Log the error but don't fail the registration
+            #     print(f"Failed to send welcome email: {e}")
             
             return Response({
                 'user': UserSerializer(user).data,
