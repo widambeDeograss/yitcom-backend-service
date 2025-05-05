@@ -87,8 +87,8 @@ class ForumSerializer(serializers.ModelSerializer):
         model = Forum
         fields = ('id', 'title', 'description', 'category',
                  'created_by', 'created_at', 'discussion_count',
-                 'latest_discussion', 'is_public', 'locked', 'views', 'followers_count')
-        read_only_fields = ('created_at', 'discussion_count', 'bookmark_status')
+                 'latest_discussion', 'is_public', 'locked', 'views', 'followers_count', 'bookmark_status')
+        read_only_fields = ('created_at', 'discussion_count')
     
     def get_bookmark_status(self, obj):
         request = self.context.get('request')

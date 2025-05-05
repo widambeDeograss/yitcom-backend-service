@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.contenttypes.models import ContentType
 from apps.blogs.filters import BlogFilter
-from apps.accounts.models import TechCategory
+from apps.accounts.models import Bookmark, TechCategory
 from .models import Blog, Reaction, Comment
 from .serializers import BlogCreateSerializer, BlogSerializer, CategoryWithBlogStatsSerializer, ReactionSerializer, CommentSerializer
 from django_filters.rest_framework import DjangoFilterBackend
@@ -22,7 +22,25 @@ class BlogListCreateAPI(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return BlogCreateSerializer
         return BlogSerializer
+    
+    def get_queryset(self):
+        queryset = Blog.objects.filter(is_published=True, deleted=False)
+        # Filter for bookmarked forums if requested
+        bookmarked = self.request.query_params.get('bookmarked')
+        if bookmarked and self.request.user.is_authenticated:
+            if bookmarked.lower() == 'true':
+                # Get content type for Blog model
+                blog_content_type = ContentType.objects.get_for_model(Blog)
+                # Get IDs of bookmarked blogs
+                bookmarked_blogs_ids = Bookmark.objects.filter(
+                    user=self.request.user,
+                    content_type=blog_content_type
+                ).values_list('object_id', flat=True)
+                # Filter forums by bookmarked IDs
+                queryset = queryset.filter(id__in=bookmarked_blogs_ids)
 
+        return queryset
+    
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 

@@ -59,8 +59,8 @@ class BlogSerializer(serializers.ModelSerializer):
         model = Blog
         fields = ('id', 'title', 'slug', 'content', 'author', 'categories',
                  'published_at', 'is_published', 'featured_image', 'views',
-                 'reactions', 'user_reaction', 'comments')
-        read_only_fields = ('slug', 'views', 'published_at', 'bookmark_status')
+                 'reactions', 'user_reaction', 'comments', 'bookmark_status')
+        read_only_fields = ('slug', 'views', 'published_at')
     
     def get_bookmark_status(self, obj):
         request = self.context.get('request')
