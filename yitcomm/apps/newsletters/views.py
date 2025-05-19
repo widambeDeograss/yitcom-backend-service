@@ -1,6 +1,7 @@
 from datetime import timezone
 from warnings import filters
 from rest_framework import generics, permissions, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
@@ -10,9 +11,12 @@ from .serializers import NewsletterSerializer, NewsletterSubscriptionSerializer
 from apps.accounts.models import TechCategory, User
 from django_filters.rest_framework import DjangoFilterBackend
 
+from .signals import send_verification_notification
+
+
 class NewsletterSubscriptionView(generics.ListCreateAPIView):
     serializer_class = NewsletterSubscriptionSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         """Users can only see their own subscriptions"""
