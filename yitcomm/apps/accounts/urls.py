@@ -13,7 +13,7 @@ from .views import (
     PermissionViewSet,
     BookmarkListView,
     BookmarkDetailView,
-    CheckBookmarkView
+    CheckBookmarkView, SocialLoginSuccess
 )
 
 # Create a router and register our viewsets
@@ -39,4 +39,5 @@ urlpatterns = [
     path('bookmarks/check/', CheckBookmarkView.as_view(), name='check-bookmark'),
     path('bookmarks/toggle/', ToggleBookmarkView.as_view(), name='toggle-bookmark'),
     path('api/social-auth/<str:backend>/', SocialAuthView.as_view(), name='social_auth'),
+    path('social-success/', SocialLoginSuccess.as_view(), name='social-success'),
 ]

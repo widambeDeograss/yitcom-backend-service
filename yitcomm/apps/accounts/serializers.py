@@ -84,10 +84,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    groups = GroupSerializer(many=True, read_only=True)
     """Simplified user serializer for profile information."""
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'profile_image')
+        fields = ('id', 'username', 'first_name', 'last_name', 'profile_image', "groups", "email", "phone_number", "is_active")
 
 
 
