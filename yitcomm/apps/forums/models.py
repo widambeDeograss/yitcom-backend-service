@@ -28,7 +28,7 @@ class Tag(models.Model):
 
 class Forum(models.Model):
     """Discussion forums with enhanced moderation"""
-    title = models.CharField(max_length=100)
+    title = models.CharField(max_length=1000)
     description = models.TextField()
     category = models.ForeignKey(TechCategory, on_delete=models.CASCADE, related_name='forums')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_forums')

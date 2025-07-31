@@ -18,8 +18,8 @@ class EventImageAdmin(admin.ModelAdmin):
 
 @admin.register(EventRegistration)
 class EventRegistrationAdmin(admin.ModelAdmin):
-    list_display = ('event', 'user', 'registered_at', 'attended', 'waitlisted')
-    list_filter = ('attended', 'waitlisted')
+    list_display = ('event', 'user', 'attended')
+    list_filter = ('attended',)
     search_fields = ('event__title', 'user__email')
 
 @admin.register(TechNews)
