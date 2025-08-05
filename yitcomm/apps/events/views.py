@@ -456,6 +456,27 @@ class PaymentView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
 
+class EventImageView(APIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get(self, request, event_id):
+        event = get_object_or_404(Event, id=event_id)
+        images = EventImage.objects.filter(event=event)
+        serializer = EventImageSerializer(images, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, event_id):
+        event = get_object_or_404(Event, id=event_id)
+        data = request.data.copy()
+        data['event'] = event.id  # Assign the event foreign key
+
+        serializer = EventImageSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(event=event)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
 @api_view(['POST'])
 @permission_classes([])  # No authentication required for callback
 def zenopay_callback(request):

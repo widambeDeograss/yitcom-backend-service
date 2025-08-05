@@ -23,6 +23,7 @@ urlpatterns = [
          name='event-bulk-register'),
     path('events/<int:pk>/stats/', api_views.EventStatsView.as_view(), name='event-stats'),
     path('events/featured/', api_views.EventFeaturedView.as_view(), name='event-featured'),
+    path('events/<int:event_id>/images/', api_views.EventImageView.as_view(), name='event-images'),
 
     # Registration management
     path('registrations/<uuid:registration_id>/', api_views.EventRegistrationView.as_view(),
