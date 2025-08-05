@@ -1,10 +1,4 @@
-from django.db import models
-from django.utils import timezone
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
-from django.contrib.contenttypes.models import ContentType
-
 from apps.accounts.models import Notification, TechCategory, User
-
 from django.db import models
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation

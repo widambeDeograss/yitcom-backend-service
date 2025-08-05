@@ -92,7 +92,7 @@ class EventListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         event = serializer.save(organizer=self.request.user)
-        send_event_notification.delay(event.id)
+        send_event_notification(event.id)
 
 
 class EventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):

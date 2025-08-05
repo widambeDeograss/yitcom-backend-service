@@ -123,7 +123,7 @@ class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = (
-            'id', 'title', 'slug', 'description', 'organizer', 'location',
+            'id', 'title', 'description', 'organizer', 'location',
             'is_online', 'meeting_url', 'start_time', 'end_time', 'timezone',
             'categories', 'featured_image', 'max_participants', 'status',
             'participant_count', 'confirmed_registrations_count', 'user_registration',
@@ -153,9 +153,10 @@ class EventSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request:
             from django.urls import reverse
-            return request.build_absolute_uri(
-                reverse('event-ical', kwargs={'pk': obj.pk})
-            )
+            return ""
+            # return request.build_absolute_uri(
+            #     reverse('event-ical', kwargs={'pk': obj.pk})
+            # )
         return None
 
     def get_registration_deadline(self, obj):
