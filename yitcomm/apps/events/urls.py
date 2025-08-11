@@ -8,7 +8,7 @@ from . import views as api_views
 router = DefaultRouter()
 
 app_name = 'api'
-
+router.register(r'events', api_views.EventViewSet, basename='event')
 urlpatterns = [
     # Include router URLs
     path('', include(router.urls)),
@@ -26,13 +26,13 @@ urlpatterns = [
     path('events/<int:event_id>/images/', api_views.EventImageView.as_view(), name='event-images'),
 
     # Registration management
-    path('registrations/<uuid:registration_id>/', api_views.EventRegistrationView.as_view(),
+    path('registrations/<int:registration_id>/', api_views.EventRegistrationView.as_view(),
          name='registration-detail'),
     path('registrations/', api_views.UserRegistrationsView.as_view(), name='user-registrations'),
 
     # Payment endpoints
-    path('payments/<uuid:registration_id>/initiate/', api_views.PaymentView.as_view(), name='payment-initiate'),
-    path('payments/<uuid:registration_id>/status/', api_views.PaymentView.as_view(), name='payment-status'),
+    path('payments/<int:registration_id>/initiate/', api_views.PaymentView.as_view(), name='payment-initiate'),
+    path('payments/<int:registration_id>/status/', api_views.PaymentView.as_view(), name='payment-status'),
     path('payments/callback/', api_views.zenopay_callback, name='payment-callback'),
     path('payment-methods/', api_views.payment_methods, name='payment-methods'),
 

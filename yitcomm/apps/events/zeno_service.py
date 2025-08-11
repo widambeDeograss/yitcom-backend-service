@@ -30,12 +30,14 @@ class ZenoPayService:
         Returns:
             Tuple of (success: bool, response_data: dict)
         """
+        logger.info(f"Initiating payment for registration {registration.id}")
         try:
             # Validate registration
             if registration.event.is_free:
                 return False, {'error': 'Cannot initiate payment for free event'}
 
             if not registration.payment_order_id:
+                logger.warning(f"No payment order ID found for registration {registration.id}")
                 return False, {'error': 'No payment order ID found'}
 
             # Prepare payment payload
@@ -43,9 +45,11 @@ class ZenoPayService:
                 "order_id": registration.payment_order_id,
                 "buyer_email": registration.user.email,
                 "buyer_name": registration.user.get_full_name(),
-                "buyer_phone": self._format_phone_number(registration.user.phone),
+                "buyer_phone": self._format_phone_number(registration.user.phone_number),
                 "amount": int(registration.event.price)  # Convert to integer (TZS cents)
             }
+            logger.info(f"Preparing payment payload: {payload} ===========================================")
+            logger.info(f"Payment payload: {payload}")
 
             # Make API request
             response = requests.post(
@@ -55,7 +59,9 @@ class ZenoPayService:
                 timeout=30
             )
 
+        
             response_data = response.json()
+            logger.info(f"ZenoPay response: {response_data.get('status_code')} - {response_data.get('text')} ==============================")
 
             if response.status_code == 200 and response_data.get('status') == 'success':
                 # Update registration with payment details

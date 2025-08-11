@@ -13,7 +13,8 @@ from rest_framework.views import APIView
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
-
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from icalendar import Calendar, Event as ICalEvent
 import logging
 import json
@@ -36,6 +37,242 @@ from .tasks import send_event_notification, send_news_notification
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+from rest_framework import viewsets, mixins, status
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+from django.db import transaction
+from django.contrib.auth import get_user_model
+from .models import Event, EventRegistration, EventImage
+from .serializers import (
+    EventSerializer, EventAttendeeSerializer,
+    EventImageSerializer, BulkRegistrationSerializer
+)
+from .permissions import IsOrganizerOrAdmin
+import logging
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+class EventViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Event viewset supporting retrieve, update, delete plus custom actions"""
+
+    queryset = Event.objects.prefetch_related(
+        'images', 'categories', 'registrations', 'organizer'
+    )
+    serializer_class = EventSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    lookup_field = 'pk'
+
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsAuthenticated(), IsOrganizerOrAdmin()]
+        return super().get_permissions()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def register(self, request, pk=None):
+        """Register for an event with payment support"""
+        event = self.get_object()
+        user = request.user
+        
+        logger.info(f"User {user.id} attempting to register for event {event.id}")
+        can_register, message = event.can_register(user)
+        if not can_register:
+            logger.warning(f"User {user.id} not allowed to register for event {event.id}: {message}")
+            return Response({
+                "success": False,
+                "message": message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not event.requires_registration:
+            return Response({
+                    "success": False,
+                    "message": "This event doesn't require registration."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            with transaction.atomic():
+                special_requirements = request.data.get('special_requirements', '')
+
+                if event.is_full:
+                    # Add to waitlist
+                    registration = EventRegistration.objects.create(
+                        event=event,
+                        user=user,
+                        special_requirements=special_requirements,
+                        status='waitlisted'
+                    )
+
+                    return Response({
+                        "success": True,
+                        "message": "Event is full. You have been added to the waitlist.",
+                        "registration_id": registration.id,
+                        "waitlisted": True
+                    }, status=status.HTTP_201_CREATED)
+
+                else:
+                    # Create registration
+                    registration = EventRegistration.objects.create(
+                        event=event,
+                        user=user,
+                        special_requirements=special_requirements
+                    )
+
+                    if event.is_free:
+                        # Free event - confirm immediately
+                        return Response({
+                            "success": True,
+                            "message": "Successfully registered for the event.",
+                            "registration_id": registration.id,
+                            "payment_required": False,
+                            "next_step": "confirmed"
+                        }, status=status.HTTP_201_CREATED)
+                    else:
+                        # Paid event - payment required
+                        return Response({
+                            "success": True,
+                            "message": "Registration created. Payment required to confirm.",
+                            "registration_id": registration.id,
+                            "payment_required": True,
+                            "payment_amount": event.price,
+                            "next_step": "payment"
+                        }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(e)
+            logger.error(f"Registration error for event {event.id}: {str(e)}")
+            return Response({
+                "success": False,
+                "message": "An error occurred during registration. Please try again."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def upload_images(self, request, pk=None):
+        """Upload multiple images to an event"""
+        event = self.get_object()
+
+        if request.user != event.organizer and not request.user.is_staff:
+            return Response({
+                "detail": "You don't have permission to upload images to this event."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        images = request.FILES.getlist('images')
+        if not images:
+            return Response({
+                "detail": "No images provided"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        next_order = EventImage.objects.filter(event=event).count()
+
+        event_images = []
+        for img in images:
+            event_image = EventImage.objects.create(
+                event=event,
+                image=img,
+                caption=request.data.get('caption', ''),
+                order=next_order
+            )
+            event_images.append(event_image)
+            next_order += 1
+
+        serializer = EventImageSerializer(event_images, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def attendees(self, request, pk=None):
+        """Get event attendees (for organizers)"""
+        event = self.get_object()
+
+        if request.user != event.organizer and not request.user.is_staff:
+            return Response({
+                "detail": "You don't have permission to view attendees."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        registrations = event.registrations.select_related('user').prefetch_related('ticket')
+
+        status_filter = request.query_params.get('status')
+        if status_filter == 'confirmed':
+            registrations = registrations.filter(
+                models.Q(status='confirmed') |
+                models.Q(payment_status='completed')
+            )
+        elif status_filter:
+            registrations = registrations.filter(status=status_filter)
+
+        serializer = EventAttendeeSerializer(registrations, many=True, context={'request': request})
+
+        return Response({
+            'attendees': serializer.data,
+            'total_registrations': event.registrations.count(),
+            'confirmed_registrations': event.confirmed_registrations_count,
+            'available_spots': event.available_spots
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def bulk_register(self, request, pk=None):
+        """Bulk register users (for organizers)"""
+        event = self.get_object()
+
+        if request.user != event.organizer and not request.user.is_staff:
+            return Response({
+                "detail": "You don't have permission to bulk register users."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = BulkRegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_emails = serializer.validated_data['users']
+        send_notifications = serializer.validated_data['send_notifications']
+
+        registered_users = []
+        failed_registrations = []
+
+        for email in user_emails:
+            try:
+                user = User.objects.get(email=email)
+                can_register, message = event.can_register(user)
+
+                if can_register:
+                    registration = EventRegistration.objects.create(
+                        event=event,
+                        user=user
+                    )
+                    registered_users.append({
+                        'email': email,
+                        'name': user.get_full_name(),
+                        'registration_id': registration.id
+                    })
+                else:
+                    failed_registrations.append({
+                        'email': email,
+                        'reason': message
+                    })
+
+            except User.DoesNotExist:
+                failed_registrations.append({
+                    'email': email,
+                    'reason': 'User not found'
+                })
+
+        return Response({
+            'registered_users': registered_users,
+            'failed_registrations': failed_registrations,
+            'total_registered': len(registered_users),
+            'total_failed': len(failed_registrations)
+        })
+
 
 
 class EventICalView(APIView):
@@ -120,28 +357,23 @@ class EventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         """Register for an event with payment support"""
         event = self.get_object()
         user = request.user
-
-        # Validate registration eligibility
+        
+        logger.info(f"User {user.id} attempting to register for event {event.id}")
         can_register, message = event.can_register(user)
         if not can_register:
+            logger.warning(f"User {user.id} not allowed to register for event {event.id}: {message}")
             return Response({
                 "success": False,
                 "message": message
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if registration is required
         if not event.requires_registration:
-            if event.google_form_url:
-                return Response({
-                    "success": False,
-                    "message": "This event uses external registration. Please use the Google Form.",
-                    "google_form_url": event.google_form_url
-                }, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({
+            logger.info("")
+            return Response({
                     "success": False,
                     "message": "This event doesn't require registration."
                 }, status=status.HTTP_400_BAD_REQUEST)
+            
 
         try:
             with transaction.atomic():
@@ -316,6 +548,7 @@ class EventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         })
 
 
+
 class EventRegistrationView(APIView):
     """Handle event registration payments"""
     permission_classes = [IsAuthenticated]
@@ -372,6 +605,7 @@ class EventRegistrationView(APIView):
         return Response(serializer.data)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class PaymentView(APIView):
     """Handle payment operations"""
     permission_classes = [IsAuthenticated]
@@ -384,30 +618,39 @@ class PaymentView(APIView):
             user=request.user
         )
 
+        logger.info(f"Payment initiated for registration {registration.id}")
+
         if registration.event.is_free:
+            logger.info(f"Free event registration {registration.id} - no payment required")
             return Response({
                 "success": False,
                 "message": "This is a free event, no payment required"
             }, status=status.HTTP_400_BAD_REQUEST)
 
         if registration.payment_status in ['completed', 'processing']:
+            logger.info(f"Payment already processed or in progress for registration {registration.id}")
             return Response({
                 "success": False,
                 "message": "Payment already processed or in progress"
             }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = PaymentInitiationSerializer(data=request.data)
+        logger.info(f"Payment initiation data: {serializer.initial_data}")
         serializer.is_valid(raise_exception=True)
 
         phone_number = serializer.validated_data['phone_number']
+        logger.info(f"User {request.user.id} phone number for payment: {phone_number}")
 
         # Update user phone if different
-        if phone_number != request.user.phone:
-            request.user.phone = phone_number
+        if phone_number != request.user.phone_number:
+            logger.info(f"User {request.user.id} phone number changed from {request.user.phone_number} to {phone_number}")  
+            request.user.phone_number = phone_number
             request.user.save()
+        logger.info(f"User {request.user.id} phone updated to {phone_number}")  
 
         # Initiate payment
         result = create_payment_for_registration(registration)
+        logger.info(f"Payment initiation result: {result}")
 
         if result.get('success'):
             return Response({

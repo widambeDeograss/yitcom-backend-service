@@ -6,12 +6,16 @@ from django.contrib.contenttypes.models import ContentType
 from apps.accounts.models import Notification
 
 from .models import EventRegistration
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Signal to create notifications when a user registers for an event
-@receiver(post_save, sender=EventRegistration)
+# @receiver(post_save, sender=EventRegistration)
 def create_registration_notifications(sender, instance, created, **kwargs):
     if created:
+        logger.info(f"New registration created for event {instance.event.title} by user {instance.user.username}")
         # Notify the user who registered
         Notification.objects.create(
             user=instance.user,

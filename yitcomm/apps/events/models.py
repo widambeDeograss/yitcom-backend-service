@@ -403,7 +403,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
-@receiver(post_save, sender=EventRegistration)
+# @receiver(post_save, sender=EventRegistration)
 def handle_registration_confirmation(sender, instance, created, **kwargs):
     """Handle post-registration actions"""
     if created:
@@ -411,7 +411,8 @@ def handle_registration_confirmation(sender, instance, created, **kwargs):
         if instance.event.is_free:
             # For free events, create notification immediately
             Notification.objects.create(
-                recipient=instance.user,
+                user=instance.user,
+                notification_type="event",
                 title=f"Registration Confirmed: {instance.event.title}",
                 message=f"You have successfully registered for {instance.event.title}",
                 content_type=ContentType.objects.get_for_model(Event),
@@ -420,8 +421,9 @@ def handle_registration_confirmation(sender, instance, created, **kwargs):
         else:
             # For paid events, create payment pending notification
             Notification.objects.create(
-                recipient=instance.user,
-                title=f"Payment Required: {instance.event.title}",
+                 user=instance.user,
+                notification_type="event",
+                title=f"Registration Confirmed: {instance.event.title}",
                 message=f"Please complete payment to confirm your registration for {instance.event.title}",
                 content_type=ContentType.objects.get_for_model(Event),
                 object_id=instance.event.id
@@ -434,7 +436,8 @@ def handle_payment_completion(sender, instance, **kwargs):
     if instance.status == 'completed':
         # Send payment confirmation notification
         Notification.objects.create(
-            recipient=instance.registration.user,
+            user=instance.registration.user,
+            notification_type="event",
             title=f"Payment Confirmed: {instance.registration.event.title}",
             message=f"Your payment has been confirmed. Your ticket is ready!",
             content_type=ContentType.objects.get_for_model(Event),

@@ -108,7 +108,7 @@ MIDDLEWARE = [
     # 'apps.accounts.middleware.UpdateLastActivityMiddleware',
     # 'apps.accounts.middleware.CheckUserStatusMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -123,7 +123,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5174",
+    "http://localhost:5173",
 ]
 
 

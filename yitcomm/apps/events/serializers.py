@@ -179,25 +179,34 @@ class PaymentInitiationSerializer(serializers.Serializer):
     """Serializer for payment initiation request"""
     phone_number = serializers.CharField(
         max_length=15,
-        help_text="Phone number in format 07XXXXXXXX or +255XXXXXXXXX"
+        help_text="Phone number in format 07XXXXXXXX or 255XXXXXXXXX"
     )
 
     def validate_phone_number(self, value):
-        """Validate Tanzanian phone number format"""
         import re
 
-        # Remove any non-digit characters except +
+        # Remove non-digit characters except plus sign
         clean_phone = re.sub(r'[^\d+]', '', value)
 
-        # Check various formats
-        if re.match(r'^(\+255|255)?[67]\d{8}$', clean_phone):
-            return clean_phone
-        elif re.match(r'^0[67]\d{8}$', clean_phone):
+        # Remove leading plus sign if present
+        if clean_phone.startswith('+'):
+            clean_phone = clean_phone[1:]
+
+        # If starts with '07' (local format), convert to '2557...'
+        if clean_phone.startswith('07') and len(clean_phone) == 10:
+            clean_phone = '255' + clean_phone[1:]  # drop the leading '0' and add '255'
+
+        # If starts with '7' and length 9 (missing leading 0 and 255)
+        # Optional: could handle this case if needed
+
+        # Now check that it starts with 255 and then 9 digits starting with 6 or 7
+        if re.fullmatch(r'255[67]\d{8}', clean_phone):
             return clean_phone
 
         raise serializers.ValidationError(
-            "Invalid phone number format. Use format: 07XXXXXXXX or +255XXXXXXXXX"
+            "Invalid phone number format. Use format: 07XXXXXXXX or 2557XXXXXXXX"
         )
+
 
 
 class PaymentStatusSerializer(serializers.Serializer):
