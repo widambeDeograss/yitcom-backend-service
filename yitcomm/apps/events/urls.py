@@ -21,7 +21,7 @@ urlpatterns = [
     path('events/<int:pk>/attendees/', api_views.EventRetrieveUpdateDestroyView.as_view(), name='event-attendees'),
     path('events/<int:pk>/bulk-register/', api_views.EventRetrieveUpdateDestroyView.as_view(),
          name='event-bulk-register'),
-    path('events/<int:pk>/stats/', api_views.EventStatsView.as_view(), name='event-stats'),
+    path('events/<int:event_id>/stats/', api_views.EventStatsView.as_view(), name='event-stats'),
     path('events/featured/', api_views.EventFeaturedView.as_view(), name='event-featured'),
     path('events/<int:event_id>/images/', api_views.EventImageView.as_view(), name='event-images'),
 
@@ -35,6 +35,7 @@ urlpatterns = [
     path('payments/<int:registration_id>/status/', api_views.PaymentView.as_view(), name='payment-status'),
     path('payments/callback/', api_views.zenopay_callback, name='payment-callback'),
     path('payment-methods/', api_views.payment_methods, name='payment-methods'),
+    path('payments/', api_views.UserPaymentsView.as_view(), name='user-payments'),
 
     # Ticket management
     path('tickets/', api_views.UserTicketsView.as_view(), name='user-tickets'),

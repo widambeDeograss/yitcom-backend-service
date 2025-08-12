@@ -1,10 +1,9 @@
 # api_views.py
-from django.forms import models
 from django.urls import reverse
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
-from django.db import transaction
+from django.db import transaction, models
 from django.contrib.auth import get_user_model
 
 from rest_framework import generics, permissions, status, filters
@@ -897,9 +896,16 @@ class UserRegistrationsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return EventRegistration.objects.filter(
-            user=self.request.user
-        ).select_related('event').prefetch_related('ticket').order_by('-registration_date')
+        event_id = self.request.query_params.get('event_id')
+        queryset = EventRegistration.objects.all()
+        
+        if event_id:
+            queryset = queryset.filter(event=event_id)
+        else:
+            queryset = queryset.filter(user=self.request.user).prefetch_related('ticket').order_by('-registration_date')
+
+        return queryset
+
 
 
 class UserTicketsView(generics.ListAPIView):
@@ -908,10 +914,32 @@ class UserTicketsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return EventTicket.objects.filter(
-            registration__user=self.request.user,
-            status='active'
-        ).select_related('registration__event').order_by('-issued_date')
+        event_id = self.request.query_params.get('event_id')
+        queryset = EventTicket.objects.all()
+
+        if event_id:
+            queryset = queryset.filter(registration__event=event_id)
+        else:
+            queryset = queryset.filter(registration__user=self.request.user).select_related('registration__event').order_by('-issued_date')
+        
+        return queryset
+
+
+class UserPaymentsView(generics.ListAPIView):
+    """Get event payments"""
+    serializer_class = PaymentTransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        event_id = self.request.query_params.get('event_id')
+        queryset = PaymentTransaction.objects.all()
+
+        if event_id:
+            queryset = queryset.filter(registration__event=event_id)
+        else:
+            queryset = queryset.filter(registration__user=self.request.user).select_related('registration__event').order_by('-issued_date')
+        
+        return queryset
 
 
 class EventFeaturedView(generics.ListAPIView):
