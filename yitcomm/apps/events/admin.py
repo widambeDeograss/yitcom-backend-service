@@ -22,6 +22,8 @@ class EventRegistrationAdmin(admin.ModelAdmin):
     list_filter = ('attended',)
     search_fields = ('event__title', 'user__email')
 
+
+
 @admin.register(TechNews)
 class TechNewsAdmin(admin.ModelAdmin):
     list_display = ('title', 'news_type', 'published_at', 'is_featured')

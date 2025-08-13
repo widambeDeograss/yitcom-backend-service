@@ -16,7 +16,6 @@ def send_event_notification(event_id):
             notification_type='event',
             title=f"New Event: {event.title}",
             message=event.description[:200],
-            content_object=event
         )
 
 # @shared_task

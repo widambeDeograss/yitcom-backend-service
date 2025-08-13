@@ -14,7 +14,7 @@ class ZenoPayService:
 
     def __init__(self):
         self.base_url = "https://zenoapi.com/api/payments"
-        self.api_key = getattr(settings, 'ZENOPAY_API_KEY', '')
+        self.api_key = getattr(settings, 'ZENOPAY_APIKEY', '')
         self.headers = {
             'Content-Type': 'application/json',
             'x-api-key': self.api_key
@@ -56,7 +56,7 @@ class ZenoPayService:
                 f"{self.base_url}/mobile_money_tanzania",
                 headers=self.headers,
                 json=payload,
-                timeout=30
+                timeout=300
             )
 
         

@@ -16,8 +16,6 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from icalendar import Calendar, Event as ICalEvent
 import logging
-import json
-
 from .permissions import IsOrganizerOrAdmin
 from .models import (
     Event, EventImage, EventRegistration, EventTicket,
