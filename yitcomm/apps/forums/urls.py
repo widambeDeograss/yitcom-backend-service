@@ -8,11 +8,12 @@ from .views import (
     ForumDetailView,
     DiscussionListCreateView,
     DiscussionDetailView,
-    ReactionView
+    ReactionView, MyForumListCreateView
 )
 
 urlpatterns = [
     path('forums/', ForumListCreateView.as_view(), name='forum-list'),
+    path('my-forums',MyForumListCreateView.as_view(), name='my-forumns'),
     path('forums/<int:pk>/', ForumDetailView.as_view(), name='forum-detail'),
     path('forums/<int:forum_id>/discussions/', DiscussionListCreateView.as_view(), name='discussion-list'),
     path('discussions/<int:pk>/', DiscussionDetailView.as_view(), name='discussion-detail'),

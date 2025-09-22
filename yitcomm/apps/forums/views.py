@@ -64,8 +64,45 @@ class ForumListCreateView(generics.ListCreateAPIView):
                 forum.increment_views()
 
         return queryset
-    
-    
+
+
+class MyForumListCreateView(generics.ListCreateAPIView):
+    serializer_class = ForumSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['category', 'is_active', 'is_public', 'followers']
+    search_fields = ['title', 'description', 'category__name']
+
+    def get_serializer_class(self):
+        return ForumCreateSerializer if self.request.method == 'POST' else ForumSerializer
+
+    def get_queryset(self):
+        queryset = Forum.objects.filter(is_public=True, created_by=self.request.user).annotate(
+            discussion_count=Count('discussions', distinct=True)
+        ).select_related('category', 'created_by')
+
+        # Filter for followed forums if requested
+        followed_by = self.request.query_params.get('followed_by')
+        if followed_by:
+            if followed_by == 'me':
+                queryset = queryset.filter(followers=self.request.user)
+            else:
+                try:
+                    user_id = int(followed_by)
+                    queryset = queryset.filter(followers__id=user_id)
+                except (ValueError, TypeError):
+                    pass
+
+        # Increment views if a single forum is being retrieved
+        if self.request.query_params.get('id'):
+            forum_id = self.request.query_params.get('id')
+            forum = queryset.filter(id=forum_id).first()
+            if forum:
+                forum.increment_views()
+
+        return queryset
+
+
 class ForumDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Forum.objects.all()
     serializer_class = ForumSerializer

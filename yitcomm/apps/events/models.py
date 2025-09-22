@@ -153,6 +153,7 @@ class EventRegistration(models.Model):
     payment_phone = models.CharField(max_length=15, blank=True, null=True)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     payment_date = models.DateTimeField(null=True, blank=True)
+    payment_initiated_at = models.DateTimeField(null=True, blank=True)
 
     # Additional info
     special_requirements = models.TextField(blank=True, help_text="Dietary restrictions, accessibility needs, etc.")

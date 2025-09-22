@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 class User(AbstractUser):
     """Extended User model with additional fields for Youth in Tech Tanzania platform."""
     bio = models.TextField(blank=True)
-    profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True)
+    profile_image = models.TextField(blank=True, null=True)
     github_url = models.URLField(blank=True)
     linkedin_url = models.URLField(blank=True)
     twitter_url = models.URLField(blank=True)

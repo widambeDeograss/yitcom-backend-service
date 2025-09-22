@@ -9,6 +9,11 @@ class PermissionSerializer(serializers.ModelSerializer):
         model = Permission
         fields = ('id', 'name', 'codename')
 
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model =  Notification
+        fields = "__all__"
+
 
 class GroupSerializer(serializers.ModelSerializer):
     permissions = PermissionSerializer(many=True, read_only=True)
@@ -104,15 +109,15 @@ class BookmarkSerializer(serializers.ModelSerializer):
         model = Bookmark
         fields = [
             'id', 'user', 'bookmark_type', 'content_type', 
-            'object_id', 'content_object', 'notes', 'tags',
+            'object_id', 'content_object', 'notes',
             'is_private', 'folder', 'created_at', 'is_bookmarked'
         ]
         read_only_fields = ['user', 'created_at', 'content_object', 'is_bookmarked']
 
     def get_content_object(self, obj):
         # Serialize the bookmarked object based on its type
-        from blogs.serializers import BlogSerializer  # Example import
-        from forums.serializers import ForumSerializer  # Example import
+        from apps.blogs.serializers import BlogSerializer
+        from apps.forums.serializers import ForumSerializer
         
         model = obj.content_type.model
         if model == 'blog':
@@ -142,3 +147,70 @@ class BookmarkCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bookmark
         fields = ['bookmark_type', 'content_type', 'object_id', 'notes', 'folder']
+
+
+# serializers.py
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+User = get_user_model()
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profile information"""
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'username', 'email', 'first_name', 'last_name', 'bio',
+            'profile_image', 'github_url', 'linkedin_url', 'twitter_url',
+            'website', 'phone_number', 'date_of_birth', 'location',
+            'skills', 'interests'
+        ]
+        extra_kwargs = {
+            'username': {'required': False},
+            'email': {'required': False},
+        }
+
+    def validate_username(self, value):
+        # Check if username is already taken by another user
+        if User.objects.filter(username=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Username is already taken.")
+        return value
+
+    def validate_email(self, value):
+        # Check if email is already taken by another user
+        if User.objects.filter(email=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Email is already taken.")
+        return value
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """Serializer for password change operation"""
+    current_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        # Check if new passwords match
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+
+        # Validate password strength
+        try:
+            validate_password(data['new_password'])
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({"new_password": list(e.messages)})
+
+        return data
+
+
+class SocialLinksSerializer(serializers.ModelSerializer):
+    """Serializer for updating social links only"""
+
+    class Meta:
+        model = User
+        fields = ['github_url', 'linkedin_url', 'twitter_url', 'website']

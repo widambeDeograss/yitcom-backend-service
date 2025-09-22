@@ -54,4 +54,5 @@ urlpatterns = [
 
     # User dashboard
     path('dashboard/stats/', api_views.user_dashboard_stats, name='dashboard-stats'),
+
 ]

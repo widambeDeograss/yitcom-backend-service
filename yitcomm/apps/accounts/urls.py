@@ -1,5 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
+from .operational_reports.stats import DashboardStatsView, UserRegistrationStatsView, ForumsRegistrationStatsView
 from .views import (
     SocialAuthView,
     ToggleBookmarkView,
@@ -13,7 +15,7 @@ from .views import (
     PermissionViewSet,
     BookmarkListView,
     BookmarkDetailView,
-    CheckBookmarkView, SocialLoginSuccess
+    CheckBookmarkView, SocialLoginSuccess, NotificationViewSet
 )
 
 # Create a router and register our viewsets
@@ -24,6 +26,7 @@ router.register(r'tech-categories', TechCategoryViewSet)
 router.register(r'community-roles', CommunityRoleViewSet)
 router.register(r'groups', GroupViewSet)
 router.register(r'permissions', PermissionViewSet)
+router.register(r'notifications', NotificationViewSet)
 
 # URLs that don't fit the router pattern
 auth_urls = [
@@ -40,4 +43,8 @@ urlpatterns = [
     path('bookmarks/toggle/', ToggleBookmarkView.as_view(), name='toggle-bookmark'),
     path('api/social-auth/<str:backend>/', SocialAuthView.as_view(), name='social_auth'),
     path('social-success/', SocialLoginSuccess.as_view(), name='social-success'),
+    path('dashboard/stats/', DashboardStatsView.as_view() ),
+    path('dashboard/users/', UserRegistrationStatsView.as_view()),
+    path('dashboard/forums/', ForumsRegistrationStatsView.as_view()),
+
 ]

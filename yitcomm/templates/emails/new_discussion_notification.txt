@@ -1,0 +1,13 @@
+Hello {{ forum_author.username }},
+
+A new discussion has been started in your forum "{{ forum.title }}":
+
+Discussion: {{ discussion.title }}
+By: {{ discussion.author.username }}
+Content: {{ discussion.content|truncatewords:30 }}
+
+View the discussion here: {{ site_url }}/discussions/{{ discussion.id }}
+
+You're receiving this email because you're the owner of the forum "{{ forum.title }}".
+
+This is an automated notification. Please do not reply to this email.

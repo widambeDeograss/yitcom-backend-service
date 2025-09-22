@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f4f4f4; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .button { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+        .footer { margin-top: 20px; padding: 20px; background: #f4f4f4; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Discussion in Your Forum</h1>
+        </div>
+
+        <div class="content">
+            <p>Hello {{ forum_author.username }},</p>
+
+            <p>A new discussion has been started in your forum <strong>"{{ forum.title }}"</strong>:</p>
+
+            <div style="background: #f8f9fa; padding: 15px; margin: 15px 0; border-left: 4px solid #007bff;">
+                <h3 style="margin-top: 0;">{{ discussion.title }}</h3>
+                <p><strong>By:</strong> {{ discussion.author.username }}</p>
+                <p>{{ discussion.content|truncatewords:30 }}</p>
+            </div>
+
+            <p>
+                <a href="{{ site_url }}/discussions/{{ discussion.id }}" class="button">
+                    View Discussion
+                </a>
+            </p>
+
+            <p>You're receiving this email because you're the owner of the forum "{{ forum.title }}".</p>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated notification. Please do not reply to this email.</p>
+            <p>&copy; {% now "Y" %} Your Platform Name. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

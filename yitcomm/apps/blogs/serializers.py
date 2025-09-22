@@ -34,13 +34,13 @@ class CommentSerializer(serializers.ModelSerializer):
         ).data
 
     def get_user_reaction(self, obj):
-        user = self.context['request'].user
-        if user.is_authenticated:
-            content_type = ContentType.objects.get_for_model(Comment)
+        request = self.context.get("request", None)
+        if request and request.user.is_authenticated:
+            content_type = ContentType.objects.get_for_model(Blog)
             reaction = Reaction.objects.filter(
                 content_type=content_type,
                 object_id=obj.id,
-                user=user
+                user=request.user
             ).first()
             return reaction.reaction_type if reaction else None
         return None
@@ -67,13 +67,13 @@ class BlogSerializer(serializers.ModelSerializer):
         return get_bookmark_status(request.user if request else None, obj)
 
     def get_user_reaction(self, obj):
-        user = self.context['request'].user
-        if user.is_authenticated:
+        request = self.context.get("request", None)
+        if request and request.user.is_authenticated:
             content_type = ContentType.objects.get_for_model(Blog)
             reaction = Reaction.objects.filter(
                 content_type=content_type,
                 object_id=obj.id,
-                user=user
+                user=request.user
             ).first()
             return reaction.reaction_type if reaction else None
         return None

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
@@ -13,7 +13,8 @@ from .models import User, Skill, TechCategory, CommunityRole, Notification
 from .models import Bookmark
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from .serializers import BookmarkSerializer, BookmarkCreateSerializer
+from .serializers import BookmarkSerializer, BookmarkCreateSerializer, NotificationSerializer, \
+    UserProfileUpdateSerializer, PasswordChangeSerializer, SocialLinksSerializer
 from .serializers import (
     UserSerializer, 
     UserProfileSerializer, 
@@ -47,65 +48,120 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(is_deleted=False)
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_serializer_class(self):
         # Use a simplified serializer for list views
         if self.action == 'list':
             return UserProfileSerializer
         return UserSerializer
-    
-    def perform_destroy(self, instance):
-        # Soft delete
-        instance.is_deleted = True
-        instance.save()
-    
+
+    def get_object(self):
+        # For update operations, return the current user
+        if self.action in ['update', 'partial_update', 'change_password', 'update_social_links']:
+            return self.request.user
+        return super().get_object()
+
+    def update(self, request, *args, **kwargs):
+        # Use the profile update serializer for updates
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = UserProfileUpdateSerializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def change_password(self, request):
+        """Change user password"""
+        user = request.user
+        serializer = PasswordChangeSerializer(data=request.data)
+
+        if serializer.is_valid():
+            # Check current password
+            if not user.check_password(serializer.validated_data['current_password']):
+                return Response(
+                    {'error': 'Current password is incorrect'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Set new password
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+
+            # Update session to prevent logout
+            update_session_auth_hash(request, user)
+
+            return Response({'status': 'Password changed successfully'})
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['patch'])
+    def update_social_links(self, request):
+        """Update only social links"""
+        user = request.user
+        serializer = SocialLinksSerializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Existing actions for skills and interests
     @action(detail=True, methods=['post'])
     def add_skill(self, request, pk=None):
         user = self.get_object()
         skill_id = request.data.get('skill_id')
-        
+
         try:
             skill = Skill.objects.get(id=skill_id)
             user.skills.add(skill)
             return Response({'status': 'Skill added'}, status=status.HTTP_200_OK)
         except Skill.DoesNotExist:
             return Response({'error': 'Skill not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     @action(detail=True, methods=['post'])
     def remove_skill(self, request, pk=None):
         user = self.get_object()
         skill_id = request.data.get('skill_id')
-        
+
         try:
             skill = Skill.objects.get(id=skill_id)
             user.skills.remove(skill)
             return Response({'status': 'Skill removed'}, status=status.HTTP_200_OK)
         except Skill.DoesNotExist:
             return Response({'error': 'Skill not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     @action(detail=True, methods=['post'])
     def add_interest(self, request, pk=None):
         user = self.get_object()
         category_id = request.data.get('category_id')
-        
+
         try:
             category = TechCategory.objects.get(id=category_id)
             user.interests.add(category)
             return Response({'status': 'Interest added'}, status=status.HTTP_200_OK)
         except TechCategory.DoesNotExist:
             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     @action(detail=True, methods=['post'])
     def remove_interest(self, request, pk=None):
         user = self.get_object()
         category_id = request.data.get('category_id')
-        
+
         try:
             category = TechCategory.objects.get(id=category_id)
             user.interests.remove(category)
             return Response({'status': 'Interest removed'}, status=status.HTTP_200_OK)
         except TechCategory.DoesNotExist:
             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def perform_destroy(self, instance):
+        # Soft delete
+        instance.is_deleted = True
+        instance.save()
+
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = UserSerializer
@@ -263,6 +319,54 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [permissions.IsAdminUser]
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for viewing and deleting notifications
+    """
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Only return notifications for the logged-in user
+        return Notification.objects.filter(user=self.request.user).order_by("-created_at")
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a notification"""
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"detail": "Notification deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["delete"], url_path="clear-all")
+    def clear_all(self, request):
+        """Delete all notifications for the current user"""
+        qs = self.get_queryset()
+        deleted_count = qs.delete()[0]
+        return Response({"detail": f"Deleted {deleted_count} notifications"}, status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["patch"], url_path="mark-as-read")
+    def mark_as_read(self, request, pk=None):
+        """Mark a notification as read"""
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"], url_path="mark-all-as-read")
+    def mark_all_as_read(self, request):
+        """Mark all notifications as read for the current user"""
+        qs = self.get_queryset().filter(is_read=False)
+        updated_count = qs.update(is_read=True)
+        return Response({"detail": f"Marked {updated_count} notifications as read"})
+
+    @action(detail=False, methods=["get"], url_path="unread-count")
+    def unread_count(self, request):
+        """Get count of unread notifications"""
+        count = self.get_queryset().filter(is_read=False).count()
+        return Response({"count": count})
 
 
 class BookmarkListView(generics.ListCreateAPIView):

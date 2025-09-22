@@ -1,4 +1,6 @@
 # api_views.py
+from datetime import timedelta
+
 from django.urls import reverse
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -643,10 +645,15 @@ class PaymentView(APIView):
             logger.info(f"User {request.user.id} phone number changed from {request.user.phone_number} to {phone_number}")  
             request.user.phone_number = phone_number
             request.user.save()
-        logger.info(f"User {request.user.id} phone updated to {phone_number}")  
+        logger.info(f"User {request.user.id} phone updated to {phone_number}")
 
         # Initiate payment
         result = create_payment_for_registration(registration)
+        logger.info(f"Payment initiation result: {result}")
+
+        # Store payment initiation time
+        registration.payment_initiated_at = timezone.now()
+        registration.save()
         logger.info(f"Payment initiation result: {result}")
 
         if result.get('success'):
@@ -671,8 +678,20 @@ class PaymentView(APIView):
         )
 
         if registration.payment_order_id:
+            if registration.payment_initiated_at:
+                time_since_initiation = timezone.now() - registration.payment_initiated_at
+                if time_since_initiation > timedelta(minutes=7):
+                    logger.info(f"Payment initiation timed out for registration {registration.id}")
+                    return Response({
+                        "success": False,
+                        "message": "Payment initiation timed out. Please start again.",
+                        "timed_out": True
+                    }, status=status.HTTP_408_REQUEST_TIMEOUT)
+
             result = check_and_update_payment_status(registration)
+            logger.info(f"Payment status results for {result}")
             registration.refresh_from_db()
+
 
             transaction_data = None
             latest_transaction = registration.transactions.order_by('-created_at').first()
