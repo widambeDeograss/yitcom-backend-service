@@ -5,6 +5,7 @@ from apps.accounts.models import TechCategory
 from apps.accounts.bookmark_util import get_bookmark_status
 from .models import Blog, Reaction, Comment
 from django.contrib.contenttypes.models import ContentType
+from django.db import models
 
 class ReactionSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
@@ -53,18 +54,37 @@ class BlogSerializer(serializers.ModelSerializer):
     user_reaction = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     bookmark_status = serializers.SerializerMethodField()
+    reaction_summary = serializers.SerializerMethodField()
 
     
     class Meta:
         model = Blog
         fields = ('id', 'title', 'slug', 'content', 'author', 'categories',
-                 'published_at', 'is_published', 'featured_image', 'views',
+                 'published_at', 'is_published', 'featured_image', 'views','reaction_summary',
                  'reactions', 'user_reaction', 'comments', 'bookmark_status')
         read_only_fields = ('slug', 'views', 'published_at')
     
     def get_bookmark_status(self, obj):
         request = self.context.get('request')
         return get_bookmark_status(request.user if request else None, obj)
+
+    def get_reaction_summary(self, obj):
+        """Return counts of each reaction type for this blog."""
+        content_type = ContentType.objects.get_for_model(Blog)
+        reaction_counts = (
+            Reaction.objects
+            .filter(content_type=content_type, object_id=obj.id)
+            .values('reaction_type')
+            .annotate(total=models.Count('id'))
+        )
+        # Convert the QuerySet into a dictionary
+        summary = {item['reaction_type']: item['total'] for item in reaction_counts}
+
+        # Make sure all reaction types are present even if 0
+        for key, _ in Reaction.REACTION_TYPES:
+            summary.setdefault(key, 0)
+
+        return summary
 
     def get_user_reaction(self, obj):
         request = self.context.get("request", None)

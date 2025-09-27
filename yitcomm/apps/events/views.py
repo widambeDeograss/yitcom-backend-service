@@ -1,4 +1,5 @@
 # api_views.py
+import uuid
 from datetime import timedelta
 
 from django.urls import reverse
@@ -626,7 +627,11 @@ class PaymentView(APIView):
                 "message": "This is a free event, no payment required"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if registration.payment_status in ['completed', 'processing']:
+        is_retry = request.data.get('is_retry', False)
+
+
+
+        if not is_retry and registration.payment_status in ['completed', 'processing']:
             logger.info(f"Payment already processed or in progress for registration {registration.id}")
             return Response({
                 "success": False,
@@ -646,6 +651,14 @@ class PaymentView(APIView):
             request.user.phone_number = phone_number
             request.user.save()
         logger.info(f"User {request.user.id} phone updated to {phone_number}")
+
+        if is_retry:
+            # Generate new order ID to ensure uniqueness
+            new_order_id = f"ORD-{registration.id}-{uuid.uuid4().hex[:8].upper()}-{int(timezone.now().timestamp())}"
+            registration.payment_order_id = new_order_id
+            registration.payment_status = 'pending'
+            registration.save()
+            logger.info(f"Retry payment - new order ID generated: {new_order_id}")
 
         # Initiate payment
         result = create_payment_for_registration(registration)
@@ -677,16 +690,22 @@ class PaymentView(APIView):
             user=request.user
         )
 
+        if not registration.payment_order_id:
+            return Response({
+                "success": False,
+                "message": "No payment order found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
         if registration.payment_order_id:
-            if registration.payment_initiated_at:
-                time_since_initiation = timezone.now() - registration.payment_initiated_at
-                if time_since_initiation > timedelta(minutes=7):
-                    logger.info(f"Payment initiation timed out for registration {registration.id}")
-                    return Response({
-                        "success": False,
-                        "message": "Payment initiation timed out. Please start again.",
-                        "timed_out": True
-                    }, status=status.HTTP_408_REQUEST_TIMEOUT)
+            # if registration.payment_initiated_at:
+            #     time_since_initiation = timezone.now() - registration.payment_initiated_at
+            #     if time_since_initiation > timedelta(minutes=7):
+            #         logger.info(f"Payment initiation timed out for registration {registration.id}")
+            #         return Response({
+            #             "success": False,
+            #             "message": "Payment initiation timed out. Please start again.",
+            #             "timed_out": True
+            #         }, status=status.HTTP_408_REQUEST_TIMEOUT)
 
             result = check_and_update_payment_status(registration)
             logger.info(f"Payment status results for {result}")
