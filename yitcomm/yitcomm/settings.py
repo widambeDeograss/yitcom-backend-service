@@ -27,6 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Update these settings in your existing file
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
+SITE_URL= os.getenv('SITE_URL', 'http://localhost:5173/')
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)

@@ -2,7 +2,6 @@ from django.contrib.contenttypes.models import ContentType
 from .models import Bookmark
 
 def get_bookmark_status(user, obj):
-    print(user)
     """Check if an object is bookmarked by a user and return bookmark data if exists."""
     if not user.is_authenticated:
         return {'is_bookmarked': False, 'bookmark': None}

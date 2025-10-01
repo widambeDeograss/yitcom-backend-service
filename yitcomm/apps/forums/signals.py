@@ -7,6 +7,7 @@ from django.conf import settings
 
 from apps.accounts.models import Notification, User
 from .models import Discussion, Comment, Reaction, Forum
+from ..newsletters.signals import send_email_via_smtp
 
 
 @receiver(post_save, sender=Discussion)
@@ -42,31 +43,52 @@ def send_discussion_notification_email(forum_author, discussion, forum):
     """Send email notification to forum author about new discussion"""
     subject = f"New Discussion in Your Forum: {forum.title}"
 
-    # Create email content
-    context = {
-        'forum_author': forum_author,
-        'discussion': discussion,
-        'forum': forum,
-        'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000')
-    }
+    # HTML email template
+    html_content = f"""
+    <html>
+      <head></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+          <h2 style="color: #4a6baf;">New Discussion in Your Forum</h2>
+          <h3>{forum.title}</h3>
+          <p><strong>New discussion started by:</strong> {discussion.author.username}</p>
+          <p><strong>Discussion title:</strong> {discussion.title}</p>
+          <p><strong>Content:</strong> {discussion.content[:200]}...</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="{getattr(settings, 'SITE_URL', 'http://localhost:8000')}/forums/{forum.id}" 
+               style="background: #4a6baf; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 4px; display: inline-block;">
+              View Forum
+            </a>
+          </div>
+          <p style="margin-top: 30px; font-size: 0.9em; color: #666;">
+            You received this email because you created this forum.
+          </p>
+        </div>
+      </body>
+    </html>
+    """
 
-    # Render email template
-    message = render_to_string('emails/new_discussion_notification.txt', context)
-    html_message = render_to_string('emails/new_discussion_notification.html', context)
+    # Plain text version
+    text_content = f"""
+    New Discussion in Your Forum: {forum.title}
 
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com'),
-            recipient_list=[forum_author.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
-    except Exception as e:
-        # Log the error but don't break the application
-        print(f"Failed to send email notification: {e}")
+    New discussion started by: {discussion.author.username}
+    Discussion title: {discussion.title}
+    Content: {discussion.content[:200]}...
 
+    View the forum here: {getattr(settings, 'SITE_URL', 'http://localhost:8000')}/forums/{forum.id}
+
+    You received this email because you created this forum.
+    """
+
+    print(f"====================SENDING DISCUSSION NOTIFICATION TO: {forum_author.email}")
+    send_email_via_smtp(
+        recipient=forum_author.email,
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content
+    )
 
 @receiver(post_save, sender=Reaction)
 def notify_reaction_to_followers(sender, instance, created, **kwargs):
@@ -111,7 +133,7 @@ def notify_reaction_to_followers(sender, instance, created, **kwargs):
                 )
 
 
-@receiver(post_save, sender=Comment)
+
 def notify_discussion_participants_and_followers(sender, instance, created, **kwargs):
     """
     Notify discussion participants AND forum followers when a new comment is added

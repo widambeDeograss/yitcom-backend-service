@@ -1,9 +1,11 @@
-from datetime import timezone
+from django.utils import timezone
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 from apps.accounts.models import TechCategory, User
+from django.utils.text import slugify
+
 
 class Blog(models.Model):
     title = models.CharField(max_length=200)
@@ -34,6 +36,24 @@ class Blog(models.Model):
         self.is_published = True
         self.published_at = timezone.now()
         self.save()
+
+    def save(self, *args, **kwargs):
+        # Always generate slug from title
+        if not self.slug:
+            self.slug = slugify(self.title)
+
+        # Make slug unique by appending counter if needed
+        original_slug = self.slug
+        counter = 1
+        while Blog.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            self.slug = f"{original_slug}-{counter}"
+            counter += 1
+
+        # Set published_at when publishing for the first time
+        if self.is_published and not self.published_at:
+            self.published_at = timezone.now()
+
+        super().save(*args, **kwargs)
 
 class Reaction(models.Model):
     REACTION_TYPES = (

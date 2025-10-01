@@ -984,9 +984,9 @@ class EventFeaturedView(generics.ListAPIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
+        logger.info("===============")
         return Event.objects.filter(
-            featured=True,
-            status='upcoming'
+            featured=True
         ).prefetch_related('categories', 'images').order_by('-start_time')
 
 
@@ -1045,6 +1045,9 @@ class TechNewsListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         news = serializer.save(author=self.request.user)
         send_news_notification.delay(news.id)
+
+
+
 
 
 class NotificationListView(generics.ListAPIView):
