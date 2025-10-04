@@ -2,7 +2,6 @@ from django.utils import timezone
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-
 from apps.accounts.models import TechCategory, User
 from django.utils.text import slugify
 
@@ -55,6 +54,7 @@ class Blog(models.Model):
 
         super().save(*args, **kwargs)
 
+
 class Reaction(models.Model):
     REACTION_TYPES = (
         ('clap', '👏'),
@@ -76,6 +76,7 @@ class Reaction(models.Model):
         indexes = [
             models.Index(fields=['content_type', 'object_id']),
         ]
+
 
 class Comment(models.Model):
     content = models.TextField()

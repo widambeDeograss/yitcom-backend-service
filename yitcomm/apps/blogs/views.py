@@ -27,6 +27,13 @@ class BlogListCreateAPI(generics.ListCreateAPIView):
         queryset = Blog.objects.filter(is_published=True, deleted=False)
         # Filter for bookmarked forums if requested
         bookmarked = self.request.query_params.get('bookmarked')
+        categories = self.request.query_params.getlist("categories")
+        if categories:
+            try:
+                category_ids = [int(c) for c in categories]
+                queryset = queryset.filter(categories__id__in=category_ids)
+            except ValueError:
+                pass
         if bookmarked and self.request.user.is_authenticated:
             if bookmarked.lower() == 'true':
                 # Get content type for Blog model
