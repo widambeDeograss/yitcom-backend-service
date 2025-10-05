@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, Skill, TechCategory, CommunityRole, Notification, Bookmark
+from .models import User, Skill, TechCategory, CommunityRole, Notification, Bookmark, ContactUs
 from django.contrib.auth.models import Group
 
 @admin.register(User)
@@ -36,5 +36,21 @@ class BookmarkAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'notes', 'folder')
     raw_id_fields = ('user',)
     ordering = ('-created_at',)
+
+
+@admin.register(ContactUs)
+class ContactUsAdmin(admin.ModelAdmin):
+    list_display = ['name', 'email', 'subject', 'submitted_at', 'is_resolved']
+    list_filter = ['is_resolved', 'submitted_at']
+    search_fields = ['name', 'email', 'subject', 'message']
+    readonly_fields = ['submitted_at']
+    list_editable = ['is_resolved']
+
+    def mark_as_resolved(self, request, queryset):
+        queryset.update(is_resolved=True)
+
+    mark_as_resolved.short_description = "Mark selected submissions as resolved"
+
+    actions = [mark_as_resolved]
         
   

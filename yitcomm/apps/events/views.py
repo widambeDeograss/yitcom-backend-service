@@ -1048,8 +1048,6 @@ class TechNewsListCreateView(generics.ListCreateAPIView):
 
 
 
-
-
 class NotificationListView(generics.ListAPIView):
     """List user notifications"""
     serializer_class = NotificationSerializer

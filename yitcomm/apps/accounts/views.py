@@ -9,12 +9,12 @@ from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_django.utils import psa
-from .models import User, Skill, TechCategory, CommunityRole, Notification
+from .models import User, Skill, TechCategory, CommunityRole, Notification, ContactUs
 from .models import Bookmark
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from .serializers import BookmarkSerializer, BookmarkCreateSerializer, NotificationSerializer, \
-    UserProfileUpdateSerializer, PasswordChangeSerializer, SocialLinksSerializer
+    UserProfileUpdateSerializer, PasswordChangeSerializer, SocialLinksSerializer, ContactUsSerializer
 from .serializers import (
     UserSerializer, 
     UserProfileSerializer, 
@@ -452,3 +452,26 @@ class ToggleBookmarkView(generics.GenericAPIView):
                 {'error': 'Invalid content_type'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class ContactUsCreateAPI(generics.CreateAPIView):
+    """
+    API endpoint for contact us form submissions
+    """
+    queryset = ContactUs.objects.all()
+    serializer_class = ContactUsSerializer
+    permission_classes = [permissions.AllowAny]  # Allow anyone to submit contact form
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            {
+                "message": "Thank you for your message! We'll get back to you soon.",
+                "data": serializer.data
+            },
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )

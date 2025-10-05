@@ -15,7 +15,7 @@ from .views import (
     PermissionViewSet,
     BookmarkListView,
     BookmarkDetailView,
-    CheckBookmarkView, SocialLoginSuccess, NotificationViewSet
+    CheckBookmarkView, SocialLoginSuccess, NotificationViewSet, ContactUsCreateAPI
 )
 
 # Create a router and register our viewsets
@@ -46,5 +46,6 @@ urlpatterns = [
     path('dashboard/stats/', DashboardStatsView.as_view() ),
     path('dashboard/users/', UserRegistrationStatsView.as_view()),
     path('dashboard/forums/', ForumsRegistrationStatsView.as_view()),
+    path('contact-us/', ContactUsCreateAPI.as_view(), name='contact-us'),
 
 ]

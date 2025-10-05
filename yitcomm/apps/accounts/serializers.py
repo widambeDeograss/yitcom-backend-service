@@ -4,6 +4,9 @@ from .models import User, Skill, TechCategory, CommunityRole, Notification, Book
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+from ..newsletters.signals import send_email_via_smtp
+
+
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission
@@ -214,3 +217,81 @@ class SocialLinksSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['github_url', 'linkedin_url', 'twitter_url', 'website']
+
+
+# serializers.py
+from rest_framework import serializers
+from .models import ContactUs
+
+
+class ContactUsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactUs
+        fields = ['id', 'name', 'email', 'subject', 'message', 'submitted_at', 'is_resolved']
+        read_only_fields = ['id', 'submitted_at', 'is_resolved']
+
+    def create(self, validated_data):
+        # Create the contact us entry
+        contact = ContactUs.objects.create(**validated_data)
+
+        # Send confirmation email
+        self.send_confirmation_email(contact)
+
+        return contact
+
+    def send_confirmation_email(self, contact):
+        """
+        Send confirmation email to the person who submitted the contact form
+        """
+        subject = f"Thank you for contacting us: {contact.subject}"
+
+        html_content = f"""
+        <html>
+          <head></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+              <h2 style="color: #4a6baf;">Thank You for Contacting Us!</h2>
+              <p>Dear {contact.name},</p>
+              <p>We have received your message and will get back to you as soon as possible.</p>
+
+              <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Your Message Details:</strong></p>
+                <p><strong>Subject:</strong> {contact.subject}</p>
+                <p><strong>Message:</strong> {contact.message}</p>
+              </div>
+
+              <p>We typically respond within 24-48 hours.</p>
+
+              <p style="margin-top: 30px; font-size: 0.9em; color: #666;">
+                This is an automated response. Please do not reply to this email.
+              </p>
+            </div>
+          </body>
+        </html>
+        """
+
+        text_content = f"""
+        Thank You for Contacting Us!
+
+        Dear {contact.name},
+
+        We have received your message and will get back to you as soon as possible.
+
+        Your Message Details:
+        Subject: {contact.subject}
+        Message: {contact.message}
+
+        We typically respond within 24-48 hours.
+
+        This is an automated response. Please do not reply to this email.
+        """
+
+
+
+        print(f"====================SENDING CONTACT US CONFIRMATION TO: {contact.email}")
+        send_email_via_smtp(
+            recipient=contact.email,
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content
+        )
